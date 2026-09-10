@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Akiri",
+    "slug": "akiri-ewaste",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#121212"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.akiri.ewaste",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_SCAN",
+        "BLUETOOTH_CONNECT"
+      ]
+    },
+    "plugins": [
+      [
+        "react-native-ble-manager",
+        {
+          "bluetoothAlwaysAndWhenInUsePermission": "Allow Akiri to securely connect to ESP32 smart scales for transaction processing."
+        }
+      ]
+    ]
+  }
+}
