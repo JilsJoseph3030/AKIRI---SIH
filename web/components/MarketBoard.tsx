@@ -2,6 +2,21 @@
 
 import { useEffect, useState } from "react";
 import {
+  BatteryCharging,
+  Cable,
+  Cpu,
+  Info,
+  Magnet,
+  Monitor,
+  Package,
+  Recycle,
+  RefreshCw,
+  TrendingDown,
+  TrendingUp,
+  Tv,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
   MARKET_AS_OF,
   MARKET_SNAPSHOT,
 } from "@akiri/backend/domain";
@@ -9,14 +24,14 @@ import type { MarketRow } from "@akiri/backend/domain";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
-const ICON: Record<string, string> = {
-  pcb: "🖥️",
-  cable: "🔌",
-  battery: "🔋",
-  motor_magnet: "🧲",
-  mixed_plastics: "♳",
-  lcd_panel: "🖵",
-  crt: "📺",
+const ICON: Record<string, LucideIcon> = {
+  pcb: Cpu,
+  cable: Cable,
+  battery: BatteryCharging,
+  motor_magnet: Magnet,
+  mixed_plastics: Recycle,
+  lcd_panel: Monitor,
+  crt: Tv,
 };
 
 function Spark({ data, up }: { data: number[]; up: boolean }) {
@@ -90,16 +105,20 @@ export default function MarketBoard() {
       <div className="market-head">
         <div>
           <p className="eyebrow">Indicative rates</p>
-          <h2>📈 Market board</h2>
+          <h2 className="market-title">
+            <TrendingUp size={20} aria-hidden="true" /> Market board
+          </h2>
           <div className="market-sub">
             Indicative ₹/kg · as of {asOf} · 7-day drift is illustrative, not exchange data
           </div>
         </div>
-        <button onClick={refresh} className="btn btn-ghost btn-small">↻ Refresh via Exa</button>
+        <button onClick={refresh} className="btn btn-primary btn-small">
+          <RefreshCw size={14} aria-hidden="true" /> Refresh via Exa
+        </button>
       </div>
       {note && (
         <div className="market-note" role="status">
-          <span aria-hidden="true">◷</span>
+          <Info size={14} aria-hidden="true" />
           <span>{note}</span>
         </div>
       )}
@@ -112,24 +131,38 @@ export default function MarketBoard() {
         </div>
         {sorted.map((r) => {
           const up = r.changePct24h >= 0;
+          const MatIcon = ICON[r.category] ?? Package;
           return (
             <div key={r.category} className="market-row" role="row" title={r.source}>
               <span className="market-mat" role="cell">
-                <span className="market-icon" aria-hidden="true">{ICON[r.category] ?? "📦"}</span>
+                <span className="market-icon">
+                  <MatIcon size={24} strokeWidth={1.8} aria-hidden="true" />
+                </span>
                 <span>
                   <div className="market-label">{r.label}</div>
                   <div className="market-src">
                     {r.confidence === "sourced" ? (
-                      <span className="sourced">● sourced</span>
+                      <>
+                        <span className="dot" aria-hidden="true" />
+                        <span className="sourced">sourced</span>
+                      </>
                     ) : (
-                      "○ indicative"
+                      <>
+                        <span className="dot dot-hollow" aria-hidden="true" />
+                        <span>indicative</span>
+                      </>
                     )}
                   </div>
                 </span>
               </span>
               <span className="market-spot" role="cell">₹{r.spotInrPerKg.toLocaleString("en-IN")}</span>
               <span className={up ? "market-change up" : "market-change down"} role="cell">
-                {up ? "▲" : "▼"} {Math.abs(r.changePct24h).toFixed(1)}%
+                {up ? (
+                  <TrendingUp size={13} aria-hidden="true" />
+                ) : (
+                  <TrendingDown size={13} aria-hidden="true" />
+                )}
+                {Math.abs(r.changePct24h).toFixed(1)}%
               </span>
               <span className="market-trend" role="cell">
                 <Spark data={r.history7d} up={up} />

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 export default function Landing() {
   return (
@@ -21,7 +22,8 @@ export default function Landing() {
           textDecoration: "none",
         }}
       >
-        Open recycler dashboard →
+        Open recycler dashboard{" "}
+        <ArrowRight size={18} style={{ verticalAlign: "-3px" }} aria-hidden="true" />
       </Link>
     </main>
   );
