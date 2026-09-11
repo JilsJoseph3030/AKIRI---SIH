@@ -126,6 +126,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     load();
+    // Vision lots land from the app at any time — poll so the queue,
+    // stats, and values stay current without a manual refresh.
+    const poll = setInterval(load, 15000);
+    return () => clearInterval(poll);
   }, [load]);
 
   const stats = useMemo(() => {

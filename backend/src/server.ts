@@ -15,6 +15,7 @@ import {
 import type { MaterialCategory, Transaction } from "./domain/schemas";
 import { chains, exportRows, lots, PRICES, RECYCLERS } from "./store";
 import { voice } from "./voice/routes";
+import { VisionError, identifyImage } from "./vision/identify";
 
 function isCategory(value: unknown): value is MaterialCategory {
   return (
@@ -38,6 +39,17 @@ interface LotIntake {
 
 interface ConfirmIntake {
   recyclerId: unknown;
+}
+
+interface VisionIntake {
+  id: unknown;
+  collectorId: unknown;
+  imageBase64: unknown;
+  mimeType?: unknown;
+  weightKg?: unknown;
+  hint?: unknown;
+  lat?: unknown;
+  lng?: unknown;
 }
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -123,6 +135,81 @@ app.post("/lots", async (c) => {
   chains.set(tx.id, [entry]);
   tx.ledgerRef = entry.refCode;
   return c.json(tx, 201);
+});
+
+/** Vision scan: photo → model + Exa identification → lot + chain + nearby centers. */
+app.post("/vision/identify", async (c) => {
+  const body = (await c.req.json()) as VisionIntake;
+  if (typeof body.id !== "string" || body.id.length === 0) {
+    return c.json({ error: "id required" }, 400);
+  }
+  if (typeof body.collectorId !== "string" || body.collectorId.length === 0) {
+    return c.json({ error: "collectorId required" }, 400);
+  }
+  if (typeof body.imageBase64 !== "string" || body.imageBase64.length < 100) {
+    return c.json({ error: "imageBase64 required" }, 400);
+  }
+  if (body.imageBase64.length > 3_000_000) {
+    return c.json({ error: "image too large (3MB cap)" }, 413);
+  }
+  const existing = lots.get(body.id);
+  if (existing) return c.json({ lot: existing, vision: null, nearby: [] });
+  const weightKg =
+    typeof body.weightKg === "number" && body.weightKg > 0 ? body.weightKg : null;
+  let vision;
+  try {
+    vision = await identifyImage(
+      process.env.OPENCODE_ZEN_API_KEY ?? "",
+      process.env.EXA_API_KEY ?? "",
+      {
+        imageBase64: body.imageBase64,
+        mimeType: typeof body.mimeType === "string" ? body.mimeType : "image/jpeg",
+        weightKg: weightKg ?? undefined,
+      hint: typeof body.hint === "string" ? body.hint : undefined,
+    },
+  );
+    } catch (err) {
+      if (err instanceof VisionError) {
+        return c.json({ error: err.message }, err.status === 503 ? 503 : 502);
+      }
+      throw err;
+    }
+  const photoHash = sha256(body.imageBase64.slice(0, 4096));
+  const tx: Transaction = {
+    id: body.id,
+    collectorId: body.collectorId,
+    recyclerId: null,
+    category: vision.category,
+    weightKg: weightKg ?? 0,
+    estimatedValueInr: vision.estimatedValueInr ?? 0,
+    photoHash,
+    gpsLat: typeof body.lat === "number" ? body.lat : null,
+    gpsLng: typeof body.lng === "number" ? body.lng : null,
+    timestamp: new Date().toISOString(),
+    status: "offered",
+    ledgerRef: null,
+    synced: true,
+  };
+  lots.set(tx.id, tx);
+  const entry = await createEntry(sha256, {
+    photoHash: `photo:${photoHash}`,
+    weightKg: tx.weightKg,
+    gpsLat: tx.gpsLat,
+    gpsLng: tx.gpsLng,
+    timestamp: tx.timestamp,
+    collectorId: tx.collectorId,
+    recyclerId: null,
+    prevHash: "",
+  });
+  chains.set(tx.id, [entry]);
+  tx.ledgerRef = entry.refCode;
+  const nearby = rankRecyclers(
+    RECYCLERS,
+    vision.category,
+    tx.gpsLat ?? 21.15,
+    tx.gpsLng ?? 79.09,
+  ).slice(0, 5);
+  return c.json({ lot: tx, vision, nearby }, 201);
 });
 
 app.get("/lots", (c) => c.json([...lots.values()]));

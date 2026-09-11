@@ -68,16 +68,29 @@ export default function MarketBoard() {
   const [note, setNote] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`${API}/market`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((raw: unknown) => {
-        if (isMarketPayload(raw) && raw.rows.length > 0) {
+    let stop = false;
+    const fetchMarket = async () => {
+      try {
+        const r = await fetch(`${API}/market`);
+        if (!r.ok) return;
+        const raw: unknown = await r.json();
+        if (!stop && isMarketPayload(raw) && raw.rows.length > 0) {
           setRows(raw.rows);
           setAsOf(raw.asOf);
         }
-      })
-      .catch(() => {});
+      } catch {
+        // keep snapshot
+      }
+    };
+    fetchMarket();
+    const poll = setInterval(fetchMarket, 60000);
+    return () => {
+      stop = true;
+      clearInterval(poll);
+    };
   }, []);
+
+  const sorted = [...rows].sort((a, b) => b.spotInrPerKg - a.spotInrPerKg);
 
   async function refresh() {
     setNote(null);
@@ -97,8 +110,6 @@ export default function MarketBoard() {
       setNote("API unreachable — showing researched snapshot.");
     }
   }
-
-  const sorted = [...rows].sort((a, b) => b.spotInrPerKg - a.spotInrPerKg);
 
   return (
     <section className="market" aria-label="Market price board">
