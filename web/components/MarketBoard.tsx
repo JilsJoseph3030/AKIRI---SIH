@@ -21,7 +21,7 @@ import {
   MARKET_SNAPSHOT,
 } from "@akiri/backend/domain";
 import type { MarketRow } from "@akiri/backend/domain";
-import { apiHeaders } from "../lib/api";
+import { apiHeaders, API_BASE as API } from "../lib/api";
 
 const ICON: Record<string, LucideIcon> = {
   pcb: Cpu,
