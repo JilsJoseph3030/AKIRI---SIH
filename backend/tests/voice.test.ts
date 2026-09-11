@@ -171,6 +171,7 @@ describe("voice HTTP routes", () => {
     // Hermetic: never let a developer .env turn unit tests into live calls.
     vi.stubEnv("OPENCODE_ZEN_API_KEY", "");
     vi.stubEnv("EXA_API_KEY", "");
+    vi.stubEnv("SARVAM_API_KEY", "");
     const { app } = await import("../src/server");
     const { chains, lots } = await import("../src/store");
     const callSid = "CA-route-1";
@@ -434,5 +435,52 @@ describe("model-spoken replies and call memory", () => {
     // Hangup path drops the whole session object; TTL sweep drops stale ones.
     // The store holds no transcript table by design — assert the shape instead:
     expect("history" in s && !("transcriptLog" in s)).toBe(true);
+  });
+});
+
+describe("sarvam translate + speak pipeline", () => {
+  const cfg = { apiKey: "k" };
+
+  it("translates English to colloquial Malayalam", async () => {
+    const { sarvamTranslate, sarvamLocale, mapSarvamLang } = await import("../src/voice/sarvam");
+    expect(sarvamLocale("ml")).toBe("ml-IN");
+    expect(sarvamLocale("or")).toBe("od-IN");
+    expect(mapSarvamLang("ml-IN")).toBe("ml");
+    expect(mapSarvamLang("xx-YY")).toBe(null);
+    const out = await sarvamTranslate(cfg, "What do you want?", "ml", async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ translated_text: "നിങ്ങൾക്ക് എന്താണ് വേണ്ടത്?" }),
+    }));
+    expect(out).toContain("എന്താണ്");
+    await expect(
+      sarvamTranslate(cfg, "hi", "ml", async () => ({ ok: false, status: 500, json: async () => ({}) })),
+    ).resolves.toBe(null);
+    await expect(sarvamTranslate(cfg, "Hello", "en")).resolves.toBe("Hello");
+  });
+  it("speak() chains translate then voice, degrading to English", async () => {
+    const { speak, getAudio, audioId } = await import("../src/voice/speak");
+    const calls: string[] = [];
+    const wav = Buffer.from("RIFF-wav-bytes").toString("base64");
+    vi.stubGlobal(
+      "fetch",
+      async (url: string, init: { body: string }) => {
+        calls.push(url);
+        const body = JSON.parse(init.body);
+        if (url.includes("/translate")) {
+          return { ok: true, status: 200, json: async () => ({ translated_text: "TRANSLATED[" + body.target_language_code + "]" }) };
+        }
+        return { ok: true, status: 200, json: async () => ({ audios: [wav] }) };
+      },
+    );
+    try {
+      const id = await speak({ apiKey: "k" }, "What do you want?", "ml");
+      expect(id).toBe(audioId("TRANSLATED[ml-IN]", "ml-IN"));
+      expect(getAudio(id!)?.toString()).toBe("RIFF-wav-bytes");
+      expect(calls.some((u) => u.includes("/translate"))).toBe(true);
+      expect(calls.some((u) => u.includes("/text-to-speech"))).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

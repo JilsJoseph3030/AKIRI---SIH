@@ -2,8 +2,19 @@ import type { VoiceLang } from "../domain/voice";
 
 const STT_URL = "https://api.sarvam.ai/speech-to-text";
 const TTS_URL = "https://api.sarvam.ai/text-to-speech";
+const TRANSLATE_URL = "https://api.sarvam.ai/translate";
 
 const KNOWN_LANGS = ["hi", "mr", "en", "bn", "ta", "te", "kn", "ml", "gu", "pa", "or", "as", "ur"] as const;
+
+const BCP47: Record<string, string> = {
+  hi: "hi-IN", mr: "mr-IN", en: "en-IN", bn: "bn-IN", ta: "ta-IN",
+  te: "te-IN", kn: "kn-IN", ml: "ml-IN", gu: "gu-IN", pa: "pa-IN",
+  or: "od-IN", as: "as-IN", ur: "ur-IN",
+};
+
+export function sarvamLocale(lang: string): string {
+  return BCP47[lang] ?? "hi-IN";
+}
 
 /** "ml-IN" → "ml"; unknown prefixes degrade to null (keyword fallback). */
 export function mapSarvamLang(code: unknown): VoiceLang | null {
@@ -98,6 +109,46 @@ export async function sarvamTts(
     const first: unknown = data.audios[0];
     if (typeof first !== "string" || first.length === 0) return null;
     return Buffer.from(first, "base64");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Mayura translation, modern-colloquial for spoken tone. Returns the
+ * translated text or null (caller falls back to the English source —
+ * always intelligible, never gibberish).
+ */
+export async function sarvamTranslate(
+  cfg: SarvamConfig,
+  textEn: string,
+  targetLang: string,
+  fetchFn: FetchFn = defaultFetch,
+): Promise<string | null> {
+  if (targetLang === "en") return textEn;
+  try {
+    const res = await fetchFn(TRANSLATE_URL, {
+      method: "POST",
+      headers: {
+        "api-subscription-key": cfg.apiKey,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        input: textEn,
+        source_language_code: "en-IN",
+        target_language_code: sarvamLocale(targetLang),
+        model: "mayura:v1",
+        mode: "modern-colloquial",
+      }),
+    });
+    if (!res.ok) {
+      console.warn(`sarvam translate HTTP ${res.status}`);
+      return null;
+    }
+    const data: unknown = await res.json();
+    if (!data || typeof data !== "object" || !("translated_text" in data)) return null;
+    const out: unknown = data.translated_text;
+    return typeof out === "string" && out.trim().length > 0 ? out : null;
   } catch {
     return null;
   }
