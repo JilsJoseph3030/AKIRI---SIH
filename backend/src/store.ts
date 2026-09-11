@@ -1,7 +1,7 @@
 // In-memory store for the hackathon vertical slice. Same REST contract a
 // FastAPI + PostgreSQL service implements later — swap this module only.
-import type { LedgerEntry, Transaction } from "./domain/schemas.js";
-import { PRICES, RECYCLERS } from "./domain/seed.js";
+import type { LedgerEntry, Transaction } from "./domain/schemas";
+import { PRICES, RECYCLERS } from "./domain/seed";
 
 export const lots = new Map<string, Transaction>();
 export const chains = new Map<string, LedgerEntry[]>(); // lotId -> chain

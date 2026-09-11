@@ -1,4 +1,4 @@
-import type { LedgerEntry } from "./schemas.js";
+import type { LedgerEntry } from "./schemas";
 
 /** Hash function injected per platform (expo-crypto / node:crypto). */
 export type HashFn = (input: string) => Promise<string> | string;

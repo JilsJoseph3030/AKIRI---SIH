@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AssistantWidget from "../../components/AssistantWidget";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
@@ -22,7 +22,23 @@ const MOCK_LOTS: Lot[] = [
     recyclerId: null, timestamp: new Date().toISOString(),
     status: "offered", ledgerRef: "DEMO-REF1",
   },
+  {
+    id: "demo-02", category: "battery", weightKg: 1.5, estimatedValueInr: 210,
+    recyclerId: "rc-nag-01",
+    timestamp: new Date(Date.now() - 86400000).toISOString(),
+    status: "confirmed", ledgerRef: "DEMO-REF2",
+  },
 ];
+
+const CATEGORY_ICON: Record<string, string> = {
+  pcb: "🖥️",
+  battery: "🔋",
+  cable: "🔌",
+  crt: "📺",
+  lcd_panel: "🖵",
+  motor_magnet: "🧲",
+  mixed_plastics: "♳",
+};
 
 function isLot(value: unknown): value is Record<string, unknown> {
   if (!value || typeof value !== "object") return false;
@@ -58,10 +74,14 @@ function asLots(raw: unknown, fallback: Lot[]): Lot[] {
   return lots.length > 0 || raw.length === 0 ? lots : fallback;
 }
 
+type Filter = "all" | "offered" | "confirmed";
+
 export default function Dashboard() {
   const [lots, setLots] = useState<Lot[]>([]);
   const [live, setLive] = useState(false);
+  const [filter, setFilter] = useState<Filter>("all");
   const [refInput, setRefInput] = useState<Record<string, string>>({});
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -79,7 +99,20 @@ export default function Dashboard() {
     load();
   }, [load]);
 
+  const stats = useMemo(() => {
+    const confirmed = lots.filter((l) => l.status === "confirmed");
+    return {
+      total: lots.length,
+      pending: lots.length - confirmed.length,
+      confirmed: confirmed.length,
+      value: lots.reduce((n, l) => n + l.estimatedValueInr, 0),
+    };
+  }, [lots]);
+
+  const visible = lots.filter((l) => filter === "all" || l.status === filter);
+
   async function confirm(id: string) {
+    setConfirming(id);
     try {
       const res = await fetch(`${API}/lots/${id}/confirm`, {
         method: "POST",
@@ -101,79 +134,198 @@ export default function Dashboard() {
           l.id === id ? { ...l, status: "confirmed", recyclerId: "rc-nag-01" } : l,
         ),
       );
+    } finally {
+      setConfirming(null);
     }
   }
 
   return (
-    <main style={{ maxWidth: 960, margin: "0 auto", padding: 24 }}>
-      <p style={{ color: live ? "#7BD88F" : "#F2B134" }}>
-        {live ? "🟢 live API" : "🟡 demo data (API unreachable)"}
-      </p>
-      <h1>Incoming lots</h1>
+    <div style={page}>
+      <header style={header}>
+        <div>
+          <div style={brand}>Akiri ♻️ Recycler</div>
+          <div style={sub}>MIDC Hingna, Nagpur · rc-nag-01</div>
+        </div>
+        <div style={headerRight}>
+          <span style={live ? livePill : demoPill}>
+            {live ? "🟢 Live API" : "🟡 Demo data"}
+          </span>
+          <span style={authPill}>✅ Authorized</span>
+        </div>
+      </header>
 
-      <section
-        style={{
-          border: "1px solid #2C3A2F", borderRadius: 12,
-          padding: 16, marginBottom: 20,
-        }}
-      >
-        <strong>✅ Registration: authorized recycler</strong>
-        <span style={{ color: "#A9B8AC" }}> · rc-nag-01 · MIDC Hingna</span>
-        <div style={{ marginTop: 12, display: "flex", gap: 12 }}>
-          <a href={`${API}/export?format=csv`} style={link}>Export CSV</a>
-          <a href={`${API}/export?format=json`} style={link}>Export JSON</a>
+      <section style={statGrid}>
+        <div style={statCard}>
+          <div style={statNum}>{stats.total}</div>
+          <div style={statCap}>Incoming lots</div>
+        </div>
+        <div style={statCard}>
+          <div style={{ ...statNum, color: "#F2B134" }}>{stats.pending}</div>
+          <div style={statCap}>Awaiting confirmation</div>
+        </div>
+        <div style={statCard}>
+          <div style={{ ...statNum, color: "#7BD88F" }}>{stats.confirmed}</div>
+          <div style={statCap}>Sealed handovers</div>
+        </div>
+        <div style={statCard}>
+          <div style={statNum}>₹{stats.value.toLocaleString("en-IN")}</div>
+          <div style={statCap}>Total lot value</div>
         </div>
       </section>
 
-      {lots.map((lot) => (
-        <article
-          key={lot.id}
-          style={{
-            border: "1px solid #2C3A2F", borderRadius: 12,
-            padding: 16, marginBottom: 12,
-          }}
-        >
-          <div style={{ fontSize: 20, fontWeight: 800 }}>
-            📦 {lot.category} · {lot.weightKg} kg · ₹{lot.estimatedValueInr}
-          </div>
-          <div style={{ color: "#A9B8AC", margin: "6px 0" }}>
-            🔗 {lot.ledgerRef ?? "—"} ·{" "}
-            {new Date(lot.timestamp).toLocaleString()} · {lot.status}
-          </div>
-          {lot.status !== "confirmed" ? (
-            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              <input
-                placeholder="Reference code"
-                value={refInput[lot.id] ?? ""}
-                onChange={(e) =>
-                  setRefInput((m) => ({ ...m, [lot.id]: e.target.value }))
-                }
-                style={box}
-                aria-label="Lot reference code"
-              />
-              <button onClick={() => confirm(lot.id)} style={btn}>
-                Confirm handover →
-              </button>
-            </div>
-          ) : (
-            <div style={{ color: "#7BD88F", fontWeight: 700 }}>
-              ✅ Sealed{lot.recyclerId ? ` by ${lot.recyclerId}` : ""}
-            </div>
-          )}
-        </article>
-      ))}
+      <div style={toolbar}>
+        <div style={tabs}>
+          {(["all", "offered", "confirmed"] as Filter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              style={filter === f ? tabActive : tab}
+            >
+              {f === "all" ? "All" : f === "offered" ? "⏳ Pending" : "✅ Sealed"}
+            </button>
+          ))}
+        </div>
+        <div style={exportRow}>
+          <a href={`${API}/export?format=csv`} style={exportBtn}>⬇ CSV</a>
+          <a href={`${API}/export?format=json`} style={exportBtn}>⬇ JSON</a>
+        </div>
+      </div>
+
+      <section style={list}>
+        {visible.map((lot) => {
+          const sealed = lot.status === "confirmed";
+          return (
+            <article key={lot.id} style={card}>
+              <div style={cardTop}>
+                <span style={catIcon}>{CATEGORY_ICON[lot.category] ?? "📦"}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={catName}>{lot.category.replace(/_/g, " ")}</div>
+                  <div style={meta}>
+                    {lot.weightKg} kg · ₹{lot.estimatedValueInr.toLocaleString("en-IN")} ·{" "}
+                    {lot.timestamp ? new Date(lot.timestamp).toLocaleString("en-IN") : "—"}
+                  </div>
+                </div>
+                <span style={sealed ? sealedPill : pendingPill}>
+                  {sealed ? "✅ Sealed" : "⏳ Pending"}
+                </span>
+              </div>
+              <div style={refRow}>
+                <span style={refLabel}>Ledger ref</span>
+                <code style={refCode}>{lot.ledgerRef ?? "queued…"}</code>
+              </div>
+              {sealed ? (
+                <div style={sealedBy}>
+                  Sealed{lot.recyclerId ? ` by ${lot.recyclerId}` : ""} · chain verified on confirm
+                </div>
+              ) : (
+                <div style={confirmRow}>
+                  <input
+                    placeholder="Type collector's reference code"
+                    value={refInput[lot.id] ?? ""}
+                    onChange={(e) =>
+                      setRefInput((m) => ({ ...m, [lot.id]: e.target.value }))
+                    }
+                    style={box}
+                    aria-label="Lot reference code"
+                  />
+                  <button
+                    onClick={() => confirm(lot.id)}
+                    style={confirming === lot.id ? btnBusy : btn}
+                    disabled={confirming === lot.id}
+                  >
+                    {confirming === lot.id ? "Sealing…" : "Confirm handover →"}
+                  </button>
+                </div>
+              )}
+            </article>
+          );
+        })}
+        {visible.length === 0 && (
+          <div style={empty}>📭 No {filter === "all" ? "" : filter + " "}lots right now.</div>
+        )}
+      </section>
 
       <AssistantWidget />
-    </main>
+    </div>
   );
 }
 
+const page: React.CSSProperties = {
+  maxWidth: 980, margin: "0 auto", padding: "24px 20px 120px",
+};
+const header: React.CSSProperties = {
+  display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+  gap: 12, flexWrap: "wrap", marginBottom: 20,
+};
+const brand: React.CSSProperties = { fontSize: 30, fontWeight: 800 };
+const sub: React.CSSProperties = { color: "#A9B8AC", fontSize: 14, marginTop: 2 };
+const headerRight: React.CSSProperties = { display: "flex", gap: 8, flexWrap: "wrap" };
+const pill: React.CSSProperties = {
+  fontSize: 13, fontWeight: 700, padding: "6px 12px", borderRadius: 999,
+};
+const livePill: React.CSSProperties = { ...pill, background: "#24402C", color: "#7BD88F" };
+const demoPill: React.CSSProperties = { ...pill, background: "#3A2F14", color: "#F2B134" };
+const authPill: React.CSSProperties = { ...pill, background: "#1B241E", color: "#F2F5F0", border: "1px solid #2C3A2F" };
+const statGrid: React.CSSProperties = {
+  display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+  gap: 12, marginBottom: 20,
+};
+const statCard: React.CSSProperties = {
+  background: "#1B241E", border: "1px solid #2C3A2F",
+  borderRadius: 14, padding: "16px 18px",
+};
+const statNum: React.CSSProperties = { fontSize: 30, fontWeight: 800 };
+const statCap: React.CSSProperties = { color: "#A9B8AC", fontSize: 13, marginTop: 2 };
+const toolbar: React.CSSProperties = {
+  display: "flex", justifyContent: "space-between", alignItems: "center",
+  gap: 12, flexWrap: "wrap", marginBottom: 14,
+};
+const tabs: React.CSSProperties = { display: "flex", gap: 8 };
+const tab: React.CSSProperties = {
+  background: "#1B241E", color: "#A9B8AC", border: "1px solid #2C3A2F",
+  borderRadius: 999, padding: "8px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer",
+};
+const tabActive: React.CSSProperties = {
+  ...tab, background: "#24402C", color: "#7BD88F", borderColor: "#24402C",
+};
+const exportRow: React.CSSProperties = { display: "flex", gap: 8 };
+const exportBtn: React.CSSProperties = {
+  color: "#7BD88F", fontWeight: 700, fontSize: 14, textDecoration: "none",
+  border: "1px solid #2C3A2F", borderRadius: 999, padding: "8px 16px",
+};
+const list: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 12 };
+const card: React.CSSProperties = {
+  background: "#1B241E", border: "1px solid #2C3A2F",
+  borderRadius: 16, padding: 18,
+};
+const cardTop: React.CSSProperties = { display: "flex", gap: 12, alignItems: "flex-start" };
+const catIcon: React.CSSProperties = {
+  fontSize: 34, background: "#101613", borderRadius: 12,
+  width: 56, height: 56, display: "flex", alignItems: "center", justifyContent: "center",
+};
+const catName: React.CSSProperties = { fontSize: 19, fontWeight: 800, textTransform: "capitalize" };
+const meta: React.CSSProperties = { color: "#A9B8AC", fontSize: 14, marginTop: 2 };
+const sealedPill: React.CSSProperties = { ...pill, background: "#24402C", color: "#7BD88F", whiteSpace: "nowrap" };
+const pendingPill: React.CSSProperties = { ...pill, background: "#3A2F14", color: "#F2B134", whiteSpace: "nowrap" };
+const refRow: React.CSSProperties = {
+  display: "flex", alignItems: "center", gap: 10, marginTop: 12,
+  background: "#101613", borderRadius: 10, padding: "10px 12px",
+};
+const refLabel: React.CSSProperties = { color: "#A9B8AC", fontSize: 13 };
+const refCode: React.CSSProperties = {
+  color: "#7BD88F", fontWeight: 800, fontSize: 17, letterSpacing: 2,
+};
+const sealedBy: React.CSSProperties = { color: "#7BD88F", fontSize: 13, marginTop: 10 };
+const confirmRow: React.CSSProperties = { display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" };
 const box: React.CSSProperties = {
   background: "#101613", color: "#F2F5F0", border: "1px solid #2C3A2F",
-  borderRadius: 10, padding: 10, flex: 1,
+  borderRadius: 10, padding: "12px", flex: "1 1 200px", fontSize: 15,
 };
 const btn: React.CSSProperties = {
-  background: "#7BD88F", border: "none", borderRadius: 10,
-  padding: "10px 18px", fontWeight: 800, cursor: "pointer",
+  background: "#7BD88F", color: "#101613", border: "none", borderRadius: 10,
+  padding: "12px 20px", fontWeight: 800, fontSize: 15, cursor: "pointer",
 };
-const link: React.CSSProperties = { color: "#7BD88F", fontWeight: 700 };
+const btnBusy: React.CSSProperties = { ...btn, opacity: 0.6, cursor: "wait" };
+const empty: React.CSSProperties = {
+  textAlign: "center", color: "#A9B8AC", padding: 40, fontSize: 16,
+};

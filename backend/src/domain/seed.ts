@@ -3,7 +3,7 @@ import type {
   PriceEntry,
   Recycler,
   TrainingSample,
-} from "./schemas.js";
+} from "./schemas";
 
 export const MATERIALS: Material[] = [
   { category: "crt", label: { en: "CRT monitor", hi: "सीआरटी मॉनिटर", mr: "सीआरटी मॉनिटर" }, hazardous: true, handlingNote: "Do not break the tube — leaded glass. Keep dry, hand over intact." },

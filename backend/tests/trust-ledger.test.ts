@@ -4,7 +4,7 @@ import {
   confirmHandover,
   createEntry,
   verifyChain,
-} from "../src/domain/trust-ledger.js";
+} from "../src/domain/trust-ledger";
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 

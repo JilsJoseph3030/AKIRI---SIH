@@ -8,9 +8,9 @@ import {
   estimateValue,
   rankRecyclers,
   verifyChain,
-} from "./domain/index.js";
-import type { MaterialCategory, Transaction } from "./domain/schemas.js";
-import { chains, exportRows, lots, PRICES, RECYCLERS } from "./store.js";
+} from "./domain/index";
+import type { MaterialCategory, Transaction } from "./domain/schemas";
+import { chains, exportRows, lots, PRICES, RECYCLERS } from "./store";
 
 function isCategory(value: unknown): value is MaterialCategory {
   return (

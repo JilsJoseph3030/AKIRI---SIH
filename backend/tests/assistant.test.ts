@@ -3,8 +3,8 @@ import {
   buildPrompt,
   fallbackReply,
   retrieve,
-} from "../src/domain/assistant.js";
-import type { KnowledgeChunk } from "../src/domain/assistant.js";
+} from "../src/domain/assistant";
+import type { KnowledgeChunk } from "../src/domain/assistant";
 
 const chunks: KnowledgeChunk[] = [
   {

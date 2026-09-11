@@ -2,7 +2,7 @@ import type {
   MaterialCategory,
   PriceEntry,
   Recycler,
-} from "./schemas.js";
+} from "./schemas";
 
 /** Instant estimated value for a weighed lot. Pure + offline-safe. */
 export function estimateValue(
