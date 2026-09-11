@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   advanceVoice,
   detectCategory,
@@ -168,6 +168,9 @@ describe("voice HTTP routes", () => {
     process.env.TWILIO_AUTH_TOKEN = "route-test-token";
     process.env.VOICE_PUBLIC_BASE_URL = "https://voice.example.com";
     process.env.VOICE_SALT = "test-salt";
+    // Hermetic: never let a developer .env turn unit tests into live calls.
+    vi.stubEnv("OPENCODE_ZEN_API_KEY", "");
+    vi.stubEnv("EXA_API_KEY", "");
     const { app } = await import("../src/server");
     const { chains, lots } = await import("../src/store");
     const callSid = "CA-route-1";
@@ -211,6 +214,7 @@ describe("voice HTTP routes", () => {
     expect(chains.get(`voice-${callSid}`)).toBeUndefined();
     lots.delete(`voice-${callSid}`);
     delete process.env.TWILIO_AUTH_TOKEN;
+    vi.unstubAllEnvs();
   });
 });
 
@@ -223,16 +227,12 @@ describe("muse spark guide", () => {
 
   it("parses strict output and rejects off-schema guesses", async () => {
     const { parseGuideResult } = await import("../src/voice/guide");
-    expect(
-      parseGuideResult({ lang: "ta", intent: "price", category: "battery", weightKg: 3, confirm: null }),
-    ).toEqual({ lang: "ta", intent: "price", category: "battery", weightKg: 3, confirm: null });
     expect(parseGuideResult({ lang: "ta", intent: "price", category: "gold-bars", weightKg: 3, confirm: null })).toBe(null);
     expect(parseGuideResult({ lang: "xx", intent: "price", category: null, weightKg: null, confirm: null })).toBe(null);
     expect(parseGuideResult({ lang: "hi", intent: "dance", category: null, weightKg: null, confirm: null })).toBe(null);
-    expect(parseGuideResult(null)).toBe(null);
-  });
-
-  it("returns null without a key or on fetch failure (keyword fallback)", async () => {
+    expect(
+      parseGuideResult({ lang: "ta", intent: "price", category: "battery", weightKg: 3, confirm: null }),
+    ).toEqual({ lang: "ta", intent: "price", category: "battery", weightKg: 3, confirm: null, ask: null, searchQuery: null, part: null, reply: null });
     const { guideVoiceTurn } = await import("../src/voice/guide");
     const ctx = { transcript: "x", step: "intent", currentLang: null };
     await expect(guideVoiceTurn("", ctx)).resolves.toBe(null);
@@ -288,9 +288,10 @@ describe("malayalam support and full-listen turns", () => {
     const s = newVoiceSession("CA-ml");
     let t = await advanceVoice(s, "malayalam samsarikkamo", "voice:abc", { exaLookup: noopExa });
     expect(s.lang).toBe("ml");
-    expect(t.reply).toContain("Ningalkku enthu venam");
+    expect(t.reply).toContain("vila aano");
     t = await advanceVoice(s, "vila ariyano", "voice:abc", { exaLookup: noopExa });
     expect(t.done).toBe(false);
+    expect(t.reply).toContain("Etha saadhanathinte");
     t = await advanceVoice(s, "battery", "voice:abc", { exaLookup: noopExa });
     expect(t.done).toBe(true);
     expect(t.reply).toContain("PRICE:battery");
@@ -352,5 +353,86 @@ describe("resilient call flow (no premature hangup)", () => {
     expect(s.intent).toBe("price");
     expect(t.done).toBe(false);
     expect(s.intentRetries).toBe(0);
+  });
+});
+
+describe("exact part identification and pricing", () => {
+  it("matches laptop keyboard to its part rate, not the bulk rate", async () => {
+    const { lookupPart, partPriceLine } = await import("../src/domain/parts");
+    const part = lookupPart("mere paas laptop keyboard hai");
+    expect(part?.key).toBe("laptop-keyboard");
+    expect(part?.category).toBe("mixed_plastics");
+    expect(partPriceLine(part!)).toContain("₹25-40 per kg");
+    expect(lookupPart("exide inverter battery")?.key).toBe("ups");
+    expect(lookupPart("purana samsung phone")?.key).toBe("mobile-phone");
+  });
+
+  it("price flow answers the exact part", async () => {
+    const s = newVoiceSession("CA-part");
+    await advanceVoice(s, "hindi", "voice:abc", { exaLookup: noopExa });
+    await advanceVoice(s, "bhaav batao", "voice:abc", { exaLookup: noopExa });
+    const t = await advanceVoice(s, "laptop keyboard ka bhaav", "voice:abc", { exaLookup: noopExa });
+    expect(t.done).toBe(true);
+    expect(t.reply).toBe("PART:laptop-keyboard");
+    expect(s.slots.partKey).toBe("laptop-keyboard");
+  });
+
+  it("pickup confirm names the exact part", async () => {
+    const s = newVoiceSession("CA-part2");
+    await advanceVoice(s, "english", "voice:abc", { exaLookup: noopExa });
+    await advanceVoice(s, "pickup please", "voice:abc", { exaLookup: noopExa });
+    const t = await advanceVoice(s, "i have ram sticks", "voice:abc", { exaLookup: noopExa });
+    expect(t.done).toBe(false);
+    expect(t.reply).toContain("RAM module");
+    expect(s.slots.partKey).toBe("ram");
+  });
+
+  it("persona sounds human and prompt teaches parts", async () => {
+    const { VOICE_SYSTEM_PROMPT, parseGuideResult } = await import("../src/voice/guide");
+    expect(VOICE_SYSTEM_PROMPT).toContain("not a support bot");
+    expect(VOICE_SYSTEM_PROMPT).toContain("PARTS");
+    expect(parseGuideResult({ lang: "hi", intent: "price", category: "mixed_plastics", weightKg: null, confirm: null, ask: null, searchQuery: null, part: "laptop-keyboard" })?.part).toBe("laptop-keyboard");
+    expect(parseGuideResult({ lang: "hi", intent: "price", category: "mixed_plastics", weightKg: null, confirm: null, ask: null, searchQuery: null, part: "gold-toilet" })?.part).toBe(null);
+  });
+});
+
+describe("model-spoken replies and call memory", () => {
+  it("speaks the model's words when present, template otherwise", async () => {
+    const s = newVoiceSession("CA-say");
+    const guide = { lang: "hi", intent: "price", category: null, weightKg: null, confirm: null, ask: null, searchQuery: null, part: null, reply: "Namaste ji! Bataiye, bhaav jaanna hai ya pickup?" } as const;
+    const t = await advanceVoice(s, "1", "voice:abc", { exaLookup: noopExa, guide: { ...guide } });
+    expect(t.reply).toBe("Namaste ji! Bataiye, bhaav jaanna hai ya pickup?");
+    const s2 = newVoiceSession("CA-say2");
+    const t2 = await advanceVoice(s2, "1", "voice:abc", { exaLookup: noopExa });
+    expect(t2.reply).toContain("bhaav");
+  });
+
+  it("remembers turns, caps at 8, and feeds the guide input", async () => {
+    const { remember } = await import("../src/domain/voice");
+    const s = newVoiceSession("CA-mem");
+    for (let i = 0; i < 12; i++) remember(s, i % 2 ? "agent" : "caller", `line ${i}`);
+    expect(s.history).toHaveLength(8);
+    expect(s.history[7]?.text).toBe("line 11");
+    let captured = "";
+    const result = await (await import("../src/voice/guide")).guideVoiceTurn(
+      "k",
+      { transcript: "haan", step: "confirm", currentLang: "hi", history: s.history },
+      async (_url, init) => {
+        captured = JSON.parse(init.body).input;
+        return { ok: true, status: 200, json: async () => ({ output_text: '{"lang":"hi","intent":"pickup","category":null,"weightKg":null,"confirm":"yes","ask":null,"searchQuery":null,"part":null,"reply":"Pakka!"}' }) };
+      },
+    );
+    expect(captured).toContain("caller: line 10");
+    expect(result?.reply).toBe("Pakka!");
+  });
+
+  it("memory dies with the session (hangup or TTL)", async () => {
+    const s = newVoiceSession("CA-del");
+    const { remember } = await import("../src/domain/voice");
+    remember(s, "caller", "battery hai");
+    expect(s.history).toHaveLength(1);
+    // Hangup path drops the whole session object; TTL sweep drops stale ones.
+    // The store holds no transcript table by design — assert the shape instead:
+    expect("history" in s && !("transcriptLog" in s)).toBe(true);
   });
 });

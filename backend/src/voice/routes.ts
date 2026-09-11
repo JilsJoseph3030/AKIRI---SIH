@@ -8,10 +8,12 @@ import {
   newVoiceSession,
   pseudonymizeCaller,
   recordTurnLatency,
+  remember,
 } from "../domain/voice";
 import type { ExaLookup, VoiceLang, VoiceSession } from "../domain/voice";
 import type { MaterialCategory, Transaction } from "../domain/schemas";
 import { MATERIALS, PRICES } from "../domain/index";
+import { partByKey, partPriceLine } from "../domain/parts";
 import { guideVoiceTurn } from "./guide";
 import { computeTwilioSignature, validTwilioSignature } from "./signature";
 import { gatherSay, sayHangup, sayLang, twimlXml } from "./twiml";
@@ -131,21 +133,27 @@ voice.post("/voice/turn", async (c) => {
   const started = Date.now();
   const transcript = params.SpeechResult ?? params.Digits ?? "";
   const pseudonym = await pseudonymizeCaller(sha256, from, salt);
-  // Muse Spark guides understanding (any Indian language); null on any
-  // failure and the keyword detectors carry the turn instead.
+  remember(session, "caller", transcript);
+  // Muse Spark guides understanding (any Indian language) with full call
+  // memory; null on any failure and the keyword detectors carry the turn.
   const guide = await guideVoiceTurn(process.env.OPENCODE_ZEN_API_KEY ?? "", {
     transcript,
     step: session.step,
     currentLang: session.lang,
+    history: session.history,
   });
   const turn = await advanceVoice(session, transcript, pseudonym, { exaLookup, guide });
+  remember(session, "agent", turn.reply);
   recordTurnLatency(session, Date.now() - started);
   if (latencyBreached(session)) {
     console.warn(`voice latency breach on ${callSid}: ${session.turnLatenciesMs.join(",")}`);
   }
   const lang = session.lang ?? "hi";
   let reply = turn.reply;
-  if (reply.startsWith("PRICE:") && session.slots.category) {
+  if (reply.startsWith("PART:") && session.slots.partKey) {
+    const part = partByKey(session.slots.partKey);
+    reply = part ? partPriceLine(part) : reply;
+  } else if (reply.startsWith("PRICE:") && session.slots.category) {
     reply = priceLine(session.slots.category, lang);
   }
   if (turn.write) {

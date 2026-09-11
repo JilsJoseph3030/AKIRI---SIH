@@ -1,6 +1,7 @@
 import type { HashFn } from "./trust-ledger";
 import type { MaterialCategory } from "./schemas";
 import { MATERIALS } from "./seed";
+import { lookupPart, partByKey } from "./parts";
 
 export type VoiceLang = "hi" | "mr" | "en" | "bn" | "ta" | "te" | "kn" | "ml" | "gu" | "pa" | "or" | "as" | "ur";
 export type VoiceIntent = "price" | "pickup" | "safety" | "human";
@@ -12,6 +13,8 @@ export interface VoiceSlots {
   hazard?: MaterialCategory;
   uncategorized?: boolean;
   needsReview?: boolean;
+  /** Exact part key from PART_RATES when the caller named a component. */
+  partKey?: string;
 }
 
 export interface VoiceSession {
@@ -28,6 +31,16 @@ export interface VoiceSession {
   intentRetries: number;
   /** Unmatched-slot attempts per flow; human redirect only after cap. */
   slotRetries: number;
+  /** Targeted inspection questions asked; generic fallback after cap. */
+  inspectRounds: number;
+  /** Cumulative caller description across inspection turns. */
+  note: string;
+  /**
+   * Short-term call memory: alternating caller/agent lines, newest last.
+   * Lives ONLY in this session object — deleted with it on hangup/TTL.
+   * Never written to disk, DB, or logs (transcripts stay out of logs).
+   */
+  history: { role: "caller" | "agent"; text: string }[];
 }
 
 export function newVoiceSession(callSid: string): VoiceSession {
@@ -40,7 +53,16 @@ export function newVoiceSession(callSid: string): VoiceSession {
     turnLatenciesMs: [],
     intentRetries: 0,
     slotRetries: 0,
+    inspectRounds: 0,
+    note: "",
+    history: [],
   };
+}
+
+/** Append one memory line, keeping only the last 8 (prompt-budget bound). */
+export function remember(session: VoiceSession, role: "caller" | "agent", text: string): void {
+  session.history.push({ role, text: text.slice(0, 200) });
+  while (session.history.length > 8) session.history.shift();
 }
 
 /** DTMF-first menu (reliable on noisy lines); speech names still work. */
@@ -55,10 +77,10 @@ const PROMPTS: Record<string, Record<string, string>> = {
     ml: "Namaskaram! Hindi 1, Marathi 2, English 3, Malayalam 4 amarthoo.",
   },
   intent: {
-    hi: "Aap kya karna chahte hain? Bhaav, pickup, ya suraksha jaankari?",
-    mr: "Tumhala kay have aahe? Bhaav, pickup, ki suraksha mahiti?",
-    en: "What would you like to do? Hear prices, request a pickup, or safety guidance?",
-    ml: "Ningalkku enthu venam? Vila, pickup, suraksha?",
+    hi: "Bahut badhiya! Ab bataiye — bhaav jaanna hai, pickup karwana hai, ya suraksha jaankari chahiye?",
+    mr: "Chhan! Ata sanga — bhaav havay, pickup karaychay, ki suraksha mahiti havi?",
+    en: "Great to hear from you! Tell me — do you want prices, a pickup, or safety guidance?",
+    ml: "Valare nanni! Ippo parayoo — vila aano, pickup aano, suraksha aano?",
   },
   priceSlot: {
     hi: "Kaun se maal ka bhaav chahiye? Battery, taar, board, ya plastic?",
@@ -85,16 +107,16 @@ const PROMPTS: Record<string, Record<string, string>> = {
     ml: "Sahayathinu support nambaril vilikku. Nanni!",
   },
   confirmed: {
-    hi: "Darj ho gaya. Recycler ko soochit kiya jayega. Dhanyavaad!",
-    mr: "Nond jhali. Recycler la kalavle jail. Dhanyavaad!",
-    en: "Registered. A nearby authorized recycler will be notified. Thank you!",
-    ml: "Rajistar cheythu. Recyclerine ariyikkum. Nanni!",
+    hi: "Ho gaya! Darj ho gaya hai. Nazdeeki recycler ko khabar bhej di jayegi. Dhanyavaad!",
+    mr: "Jhala! Nond jhali aahe. Jawalchya recycler la kalavle jail. Dhanyavaad!",
+    en: "All done! It is registered, and a nearby authorized recycler will be notified. Thank you!",
+    ml: "Kazhinju! Rajistar cheythu. Aduthulla recyclerine ariyikkum. Nanni!",
   },
   aborted: {
-    hi: "Theek hai, kuchh darj nahin hua. Phir se bataiye.",
-    mr: "Theek aahe, kahi nond jhali nahi. Punha sanga.",
-    en: "Okay, nothing was recorded. Please tell me again.",
-    ml: "Kuzhappamilla, onnum rajistar cheythilla. Veendum parayoo.",
+    hi: "Koi baat nahi, kuchh darj nahin hua. Aaram se phir se bataiye.",
+    mr: "Kahi harkat nahi, kahi nond jhali nahi. Savkash punha sanga.",
+    en: "No worries, nothing was recorded. Take your time and tell me again.",
+    ml: "Kuzhappamilla, onnum rajistar cheythilla. Samadhanathode veendum parayoo.",
   },
 };
 
@@ -125,20 +147,18 @@ const YES_WORDS = ["yes", "haan", "haanji", "ho", "हो", "हां", "baroba
 const NO_WORDS = ["no", "nahi", "नहीं", "नाही", "naka", "wrong", "galat", "chuk", "alla", "veda", "അല്ല"];
 
 const CATEGORY_WORDS: Record<MaterialCategory, string[]> = {
-  battery: ["battery", "बैटरी", "बॅटरी", "cell", "inverter", "सेल", "ബാറ്ററി"],
-  cable: ["cable", "wire", "taar", "तार", "copper", "तांब", "കമ്പി", "വയർ"],
-  pcb: ["board", "pcb", "circuit", "motherboard", "बोर्ड", "chip"],
-  crt: ["crt", "tv", "टीवी", "monitor", "maanitar"],
-  lcd_panel: ["lcd", "led", "screen", "स्क्रीन", "display", "panel"],
-  motor_magnet: ["motor", "मोटर", "magnet", "fan", "पंखा", "pump"],
-  mixed_plastics: ["plastic", "प्लास्टिक", "cabinet", "dabba", "bottle"],
+  battery: ["battery", "बैटरी", "बॅटरी", "cell", "inverter", "सेल", "ബാറ്ററി", "exide", "amaron", "ups", "car", "phone", "mobile", "laptop"],
+  cable: ["cable", "wire", "taar", "तार", "copper", "तांब", "കമ്പി", "വയർ", "charger", "cord", "plug", "charger"],
+  pcb: ["board", "pcb", "circuit", "motherboard", "बोर्ड", "chip", "green board", "processor", "ram"],
+  crt: ["crt", "tv", "टीवी", "monitor", "maanitar", "tube", "bulky", "glass", "videocon"],
+  lcd_panel: ["lcd", "led", "screen", "स्क्रीन", "display", "panel", "flat", "samsung", "lg", "monitor"],
+  motor_magnet: ["motor", "मोटर", "magnet", "fan", "पंखा", "pump", "speaker", "mixer", "fridge", "compressor", "washing", "havells"],
+  mixed_plastics: ["plastic", "प्लास्टिक", "cabinet", "dabba", "bottle", "cover", "casing", "remote", "keyboard", "mouse", "body"],
 };
-
 
 function includesAny(text: string, words: string[]): boolean {
   return words.some((w) => text.includes(w));
 }
-
 export function detectLanguage(transcript: string): VoiceLang | null {
   const t = transcript.toLowerCase();
   const langs = ["hi", "mr", "en", "bn", "ta", "te", "kn", "ml", "gu", "pa", "or", "as", "ur"] as VoiceLang[];
@@ -213,11 +233,24 @@ export interface VoiceGuide {
   category: MaterialCategory | null;
   weightKg: number | null;
   confirm: "yes" | "no" | null;
+  /** One targeted inspection question in the caller's language, or null. */
+  ask: string | null;
+  /** English web-search query for vague descriptions, or null. */
+  searchQuery: string | null;
+  /** Exact part key from PART_RATES, or null. */
+  part: string | null;
+  /** Model's spoken words for this turn (caller's language), or null. */
+  reply: string | null;
 }
 
 export interface VoiceContext {
   exaLookup: ExaLookup;
   guide?: VoiceGuide | null;
+}
+
+/** Model's words win when present; templates are the offline safety net. */
+function said(guide: VoiceGuide | null | undefined, fallback: string): string {
+  return guide?.reply && guide.reply.length > 0 ? guide.reply : fallback;
 }
 export interface VoiceTurn {
   reply: string;
@@ -251,7 +284,7 @@ export async function advanceVoice(
     const digit = DIGIT_LANG[transcript.trim()] ?? null;
     session.lang = digit ?? ctx.guide?.lang ?? detectLanguage(transcript) ?? session.lang ?? "hi";
     session.step = "intent";
-    return { reply: prompt("intent", session.lang), done: false };
+    return { reply: said(g, prompt("intent", session.lang)), done: false };
   }
 
   if (session.step === "intent") {
@@ -259,26 +292,34 @@ export async function advanceVoice(
     // Never hang up on a garbled first try: reprompt twice, human fallback after.
     if (intent === "human" && session.intentRetries < 2) {
       session.intentRetries += 1;
-      return { reply: prompt("intent", lang), done: false };
+      return { reply: said(g, prompt("intent", lang)), done: false };
     }
     session.intent = intent;
     session.step = session.intent === "human" ? "done" : "slot";
     session.slotRetries = 0;
-    if (session.intent === "human") return { reply: prompt("human", lang), done: true };
+    if (session.intent === "human") return { reply: said(g, prompt("human", lang)), done: true };
     const key = session.intent === "price" ? "priceSlot" : session.intent === "pickup" ? "pickupSlot" : "safetySlot";
-    return { reply: prompt(key, lang), done: false };
+    return { reply: said(g, prompt(key, lang)), done: false };
   }
   if (session.step === "slot") {
     const missed = () => {
       session.slotRetries += 1;
       if (session.slotRetries >= 3) {
         session.step = "done";
-        return { reply: prompt("human", lang), done: true };
+        return { reply: said(g, prompt("human", lang)), done: true };
       }
       const key = session.intent === "price" ? "priceSlot" : session.intent === "safety" ? "safetySlot" : "pickupSlot";
-      return { reply: prompt(key, lang), done: false };
+      return { reply: said(g, prompt(key, lang)), done: false };
     };
     if (session.intent === "price") {
+      const guidedPart = g?.part ? partByKey(g.part) : null;
+      const part = guidedPart ?? lookupPart(transcript);
+      if (part) {
+        session.slots.partKey = part.key;
+        session.slots.category = part.category;
+        session.step = "done";
+        return { reply: `PART:${part.key}`, done: true };
+      }
       const cat = g?.category ?? detectCategory(transcript);
       if (!cat) return missed();
       session.slots.category = cat;
@@ -296,10 +337,18 @@ export async function advanceVoice(
     const cat = g?.category ?? detectCategory(transcript);
     const weightKg = g?.weightKg ?? parseWeightKg(transcript);
     if (!cat) {
-      const proposal = await ctx.exaLookup(transcript);
+      session.note = `${session.note} ${transcript}`.trim();
+      // Guided inspection first: one targeted question per turn (cap 2),
+      // so the caller is led to the discriminating detail.
+      if (g?.ask && session.inspectRounds < 2) {
+        session.inspectRounds += 1;
+        return { reply: g.ask, done: false };
+      }
+      const query = g?.searchQuery ?? session.note;
+      const proposal = await ctx.exaLookup(query);
       if (proposal) {
         session.proposal = proposal.category;
-        session.exaLog = { query: transcript, evidence: proposal.evidence };
+        session.exaLog = { query, evidence: proposal.evidence };
         session.step = "confirm";
         return {
           reply: confirmProposal(proposal.category, lang),
@@ -313,8 +362,11 @@ export async function advanceVoice(
     }
     session.slots.category = cat;
     if (weightKg) session.slots.weightKg = weightKg;
+    const named = g?.part ? partByKey(g.part) : lookupPart(transcript);
+    const display = named ? named.label : cat;
+    if (named) session.slots.partKey = named.key;
     session.step = "confirm";
-    return { reply: confirmPickup(cat, weightKg, lang), done: false };
+    return { reply: confirmPickup(display, weightKg, lang), done: false };
   }
 
   if (session.step === "confirm") {
@@ -326,7 +378,7 @@ export async function advanceVoice(
         session.slots.needsReview = true;
       }
       const out: VoiceTurn = {
-        reply: prompt("confirmed", lang),
+        reply: said(g, prompt("confirmed", lang)),
         done: true,
         write: { intent: session.intent!, slots: { ...session.slots }, collectorPseudonym },
       };
@@ -338,10 +390,10 @@ export async function advanceVoice(
     session.slots = {};
     session.step = "slot";
     const key = session.intent === "price" ? "priceSlot" : session.intent === "pickup" ? "pickupSlot" : "safetySlot";
-    return { reply: `${prompt("aborted", lang)} ${prompt(key, lang)}`, done: false };
+    return { reply: said(g, `${prompt("aborted", lang)} ${prompt(key, lang)}`), done: false };
   }
 
-  return { reply: prompt("human", lang), done: true };
+  return { reply: said(g, prompt("human", lang)), done: true };
 }
 /** Scripted hi/mr/en/ml; other languages fall back to Hindi. */
 function phrasing(map: { hi: string; mr: string; en: string; ml: string }, lang: VoiceLang): string {
@@ -349,16 +401,16 @@ function phrasing(map: { hi: string; mr: string; en: string; ml: string }, lang:
   return map.hi;
 }
 
-function confirmPickup(cat: MaterialCategory, weightKg: number | null, lang: VoiceLang): string {
+function confirmPickup(display: string, weightKg: number | null, lang: VoiceLang): string {
   const what =
     weightKg
-      ? phrasing({ hi: `${cat}, ${weightKg} kilo`, mr: `${cat}, ${weightKg} kilo`, en: `${cat}, ${weightKg} kilos`, ml: `${cat}, ${weightKg} kilo` }, lang)
-      : cat;
+      ? phrasing({ hi: `${display}, ${weightKg} kilo`, mr: `${display}, ${weightKg} kilo`, en: `${display}, ${weightKg} kilos`, ml: `${display}, ${weightKg} kilo` }, lang)
+      : display;
   const ask = phrasing({
-    hi: "Samajh gaya. Kya yeh sahi hai? Haan ya na boliye.",
-    mr: "Samajle. Hey barobar aahe ka? Ho ki nahi sanga.",
-    en: "Understood. Is that right? Say yes or no.",
-    ml: "Manassilayi. Sheriyano? Yes o no o parayoo.",
+    hi: "Samajh gaya! Bas pakka kar lein — kya yeh sahi hai? Haan ya na boliye.",
+    mr: "Samajle! Fakt khatri karuya — hey barobar aahe ka? Ho ki nahi sanga.",
+    en: "Got it! Just to be sure — is that right? Say yes or no.",
+    ml: "Manassilayi! Onnu urappikkatte — sheriyano? Yes o no o parayoo.",
   }, lang);
   return `${what}. ${ask}`;
 }

@@ -43,6 +43,22 @@ export interface GatherOpts {
   timeout?: number;
 }
 
+/**
+ * Sarvam turn: play pre-rendered prompt audio, then record the reply.
+ * No barge-in, generous windows — the caller is always fully heard.
+ */
+export function recordPlay(audioUrl: string, action: string): string {
+  return (
+    `<Response><Play>${esc(audioUrl)}</Play>` +
+    `<Record action="${esc(action)}" method="POST" maxLength="15" timeout="4" playBeep="false"/>` +
+    `<Redirect method="POST">${esc(action)}?empty=1</Redirect></Response>`
+  );
+}
+
+export function playHangup(audioUrl: string): string {
+  return `<Response><Play>${esc(audioUrl)}</Play><Hangup/></Response>`;
+}
+
 export function gatherSay(
   text: string,
   action: string,
