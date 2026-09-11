@@ -33,13 +33,12 @@ Akiri (SIH26229 Kabadiwala Connect, Team Nexus) brings informal e-waste/scrap co
   ("can only be used in OpenCode") and paid needs a payment method — until
   either is resolved the keyword path carries all turns.
 
-## Development Commands
 
 ```bash
 npm install                                    # all workspaces (hoisted at root)
 npm test                                       # backend vitest (only workspace with tests)
 npm run typecheck --workspaces --if-present
-cd backend && npm run dev                      # API :8080 (tsx)
+cd backend && npm run dev                      # API :8080 (loads .env via --env-file)
 cd web && npm run dev                          # dashboard :3000
 cd app && npx expo start                       # Expo Go (doctor: 21/21 clean)
 cd app && EXPO_PUBLIC_API_BASE_URL=http://<pc-lan-ip>:8080 npx expo start  # physical phone (PowerShell: $env:...)

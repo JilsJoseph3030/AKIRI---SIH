@@ -94,7 +94,7 @@ function priceLine(category: MaterialCategory, lang: VoiceLang): string {
 export const voice = new Hono<{ Variables: { voiceParams: Record<string, string> } }>();
 /** Gate every webhook on signature when the auth token is configured. */
 
-voice.use(async (c, next) => {
+voice.use("/voice/*", async (c, next) => {
   const token = process.env.TWILIO_AUTH_TOKEN ?? "";
   const params = await readForm(c);
   const signature = c.req.header("x-twilio-signature") ?? "";

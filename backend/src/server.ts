@@ -45,6 +45,8 @@ export const app = new Hono();
 app.route("/", voice);
 
 
+app.get("/health", (c) => c.json({ ok: true }));
+
 app.get("/prices", (c) => {
   const location = c.req.query("location");
   return c.json(
