@@ -25,6 +25,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import AssistantWidget from "../../components/AssistantWidget";
 import MarketBoard from "../../components/MarketBoard";
+import { apiHeaders } from "../../lib/api";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
@@ -114,7 +115,7 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/lots`);
+      const res = await fetch(`${API}/lots`, { headers: apiHeaders() });
       if (!res.ok) throw new Error();
       setLots(asLots(await res.json(), MOCK_LOTS));
       setLive(true);
@@ -149,7 +150,7 @@ export default function Dashboard() {
     try {
       const res = await fetch(`${API}/lots/${id}/confirm`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: apiHeaders({ "content-type": "application/json" }),
         body: JSON.stringify({ recyclerId: "rc-nag-01" }),
       });
       if (!res.ok) throw new Error();

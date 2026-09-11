@@ -21,8 +21,7 @@ import {
   MARKET_SNAPSHOT,
 } from "@akiri/backend/domain";
 import type { MarketRow } from "@akiri/backend/domain";
-
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+import { apiHeaders } from "../lib/api";
 
 const ICON: Record<string, LucideIcon> = {
   pcb: Cpu,
@@ -71,7 +70,7 @@ export default function MarketBoard() {
     let stop = false;
     const fetchMarket = async () => {
       try {
-        const r = await fetch(`${API}/market`);
+        const r = await fetch(`${API}/market`, { headers: apiHeaders() });
         if (!r.ok) return;
         const raw: unknown = await r.json();
         if (!stop && isMarketPayload(raw) && raw.rows.length > 0) {
@@ -95,7 +94,7 @@ export default function MarketBoard() {
   async function refresh() {
     setNote(null);
     try {
-      const res = await fetch(`${API}/market/refresh`, { method: "POST" });
+      const res = await fetch(`${API}/market/refresh`, { method: "POST", headers: apiHeaders() });
       const body: unknown = await res.json();
       if (!res.ok) {
         setNote(
