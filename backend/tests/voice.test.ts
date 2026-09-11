@@ -213,3 +213,72 @@ describe("voice HTTP routes", () => {
     delete process.env.TWILIO_AUTH_TOKEN;
   });
 });
+
+describe("muse spark guide", () => {
+  it("uses the verified contributor-free model id", async () => {
+    const { VOICE_AGENT_MODEL, VOICE_AGENT_ENDPOINT } = await import("../src/voice/guide");
+    expect(VOICE_AGENT_MODEL).toBe("muse-spark-1.3-contributor-free");
+    expect(VOICE_AGENT_ENDPOINT).toBe("https://opencode.ai/zen/v1/responses");
+  });
+
+  it("parses strict output and rejects off-schema guesses", async () => {
+    const { parseGuideResult } = await import("../src/voice/guide");
+    expect(
+      parseGuideResult({ lang: "ta", intent: "price", category: "battery", weightKg: 3, confirm: null }),
+    ).toEqual({ lang: "ta", intent: "price", category: "battery", weightKg: 3, confirm: null });
+    expect(parseGuideResult({ lang: "ta", intent: "price", category: "gold-bars", weightKg: 3, confirm: null })).toBe(null);
+    expect(parseGuideResult({ lang: "xx", intent: "price", category: null, weightKg: null, confirm: null })).toBe(null);
+    expect(parseGuideResult({ lang: "hi", intent: "dance", category: null, weightKg: null, confirm: null })).toBe(null);
+    expect(parseGuideResult(null)).toBe(null);
+  });
+
+  it("returns null without a key or on fetch failure (keyword fallback)", async () => {
+    const { guideVoiceTurn } = await import("../src/voice/guide");
+    const ctx = { transcript: "x", step: "intent", currentLang: null };
+    await expect(guideVoiceTurn("", ctx)).resolves.toBe(null);
+    await expect(
+      guideVoiceTurn("k", ctx, async () => {
+        throw new Error("down");
+      }),
+    ).resolves.toBe(null);
+    await expect(
+      guideVoiceTurn("k", ctx, async () => ({ ok: false, status: 500, json: async () => ({}) })),
+    ).resolves.toBe(null);
+  });
+
+  it("guides a Tamil turn through the state machine", async () => {
+    const { guideVoiceTurn } = await import("../src/voice/guide");
+    const stub = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        output_text: '{"lang":"ta","intent":"price","category":"battery","weightKg":null,"confirm":null}',
+      }),
+    });
+    const guide = await guideVoiceTurn("k", { transcript: "battery vilai", step: "slot", currentLang: "ta" }, stub);
+    expect(guide?.category).toBe("battery");
+    const s = newVoiceSession("CA-ta");
+    s.lang = "ta";
+    s.intent = "price";
+    s.step = "slot";
+    const t = await advanceVoice(s, "battery vilai enna", "voice:abc", { exaLookup: noopExa, guide });
+    expect(t.done).toBe(true);
+    expect(t.reply).toContain("PRICE:battery");
+  });
+
+  it("detects major Indian languages at the language step", () => {
+    expect(detectLanguage("bangla bolbo")).toBe("bn");
+    expect(detectLanguage("tamil pesuven")).toBe("ta");
+    expect(detectLanguage("nenu telugu matladutanu")).toBe("te");
+    expect(detectLanguage("gujarati bolu chhu")).toBe("gu");
+    expect(detectLanguage("punjabi chahidi")).toBe("pa");
+  });
+
+  it("quotes researched collector rates in the price table", async () => {
+    const { priceTableText } = await import("../src/voice/guide");
+    const text = priceTableText();
+    expect(text).toContain("battery: collector 140-140");
+    expect(text).toContain("pcb: collector 320-320");
+    expect(text).toContain("market ref");
+  });
+});

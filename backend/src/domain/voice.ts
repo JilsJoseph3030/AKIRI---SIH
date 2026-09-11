@@ -1,8 +1,8 @@
-import type { HashFn } from "./trust-ledger.js";
-import type { MaterialCategory } from "./schemas.js";
-import { MATERIALS } from "./seed.js";
+import type { HashFn } from "./trust-ledger";
+import type { MaterialCategory } from "./schemas";
+import { MATERIALS } from "./seed";
 
-export type VoiceLang = "hi" | "mr" | "en";
+export type VoiceLang = "hi" | "mr" | "en" | "bn" | "ta" | "te" | "kn" | "ml" | "gu" | "pa" | "or" | "as" | "ur";
 export type VoiceIntent = "price" | "pickup" | "safety" | "human";
 export type VoiceStep = "language" | "intent" | "slot" | "confirm" | "done";
 
@@ -38,7 +38,7 @@ export function newVoiceSession(callSid: string): VoiceSession {
 }
 
 /** Single-question-at-a-time prompts, no jargon. */
-const PROMPTS: Record<string, Record<VoiceLang, string>> = {
+const PROMPTS: Record<string, Record<string, string>> = {
   language: {
     hi: "Namaste! Bhasha chunein. Hindi ke liye Hindi boliye.",
     mr: "Namaskar! Bhasha nivda. Marathi sathi Marathi bola.",
@@ -82,9 +82,19 @@ const PROMPTS: Record<string, Record<VoiceLang, string>> = {
 };
 
 const LANG_WORDS: Record<VoiceLang, string[]> = {
-  hi: ["hindi", "हिंदी", "hindustani"],
-  mr: ["marathi", "मराठी", "maratha"],
-  en: ["english", "अंग्रेजी", "ingraj"],
+  hi: ["hindi", "हिंदी"],
+  mr: ["marathi", "मराठी"],
+  en: ["english"],
+  bn: ["bengali", "bangla", "বাংলা"],
+  ta: ["tamil", "தமிழ்"],
+  te: ["telugu", "తెలుగు"],
+  kn: ["kannada", "ಕನ್ನಡ"],
+  ml: ["malayalam", "മലയാളം"],
+  gu: ["gujarati", "ગુજરાતી"],
+  pa: ["punjabi", "ਪੰਜਾਬੀ"],
+  or: ["odia", "oriya", "ଓଡ଼ିଆ"],
+  as: ["assamese", "অসমীয়া"],
+  ur: ["urdu", "اردو"],
 };
 
 const INTENT_WORDS: Record<VoiceIntent, string[]> = {
@@ -113,7 +123,8 @@ function includesAny(text: string, words: string[]): boolean {
 
 export function detectLanguage(transcript: string): VoiceLang | null {
   const t = transcript.toLowerCase();
-  for (const lang of ["hi", "mr", "en"] as VoiceLang[]) {
+  const langs = ["hi", "mr", "en", "bn", "ta", "te", "kn", "ml", "gu", "pa", "or", "as", "ur"] as VoiceLang[];
+  for (const lang of langs) {
     if (includesAny(t, LANG_WORDS[lang])) return lang;
   }
   return null;
@@ -177,10 +188,19 @@ export interface ExaLookup {
   (descriptionEn: string): Promise<{ category: MaterialCategory; evidence: string } | null>;
 }
 
-export interface VoiceContext {
-  exaLookup: ExaLookup;
+/** Muse Spark understanding of one turn; keywords fill whatever is null. */
+export interface VoiceGuide {
+  lang: VoiceLang;
+  intent: VoiceIntent;
+  category: MaterialCategory | null;
+  weightKg: number | null;
+  confirm: "yes" | "no" | null;
 }
 
+export interface VoiceContext {
+  exaLookup: ExaLookup;
+  guide?: VoiceGuide | null;
+}
 export interface VoiceTurn {
   reply: string;
   done: boolean;
@@ -189,7 +209,11 @@ export interface VoiceTurn {
 }
 
 function prompt(key: string, lang: VoiceLang): string {
-  return PROMPTS[key]![lang];
+  // Full scripts exist for hi/mr/en only; other languages fall back to
+  // Hindi (widely understood) while the LLM guide still understands
+  // and classifies the caller's own language.
+  const table = PROMPTS[key];
+  return table?.[lang] ?? table?.hi ?? "";
 }
 
 /**
@@ -202,17 +226,17 @@ export async function advanceVoice(
   collectorPseudonym: string,
   ctx: VoiceContext,
 ): Promise<VoiceTurn> {
-  const lang = session.lang ?? "en";
+  const lang = session.lang ?? ctx.guide?.lang ?? "en";
+  const g = ctx.guide ?? null;
 
   if (session.step === "language") {
-    const picked = detectLanguage(transcript);
-    session.lang = picked ?? "hi";
+    session.lang = ctx.guide?.lang ?? detectLanguage(transcript) ?? "hi";
     session.step = "intent";
     return { reply: prompt("intent", session.lang), done: false };
   }
 
   if (session.step === "intent") {
-    session.intent = detectIntent(transcript);
+    session.intent = ctx.guide?.intent ?? detectIntent(transcript);
     session.step = session.intent === "human" ? "done" : "slot";
     if (session.intent === "human") return { reply: prompt("human", lang), done: true };
     const key = session.intent === "price" ? "priceSlot" : session.intent === "pickup" ? "pickupSlot" : "safetySlot";
@@ -221,22 +245,22 @@ export async function advanceVoice(
 
   if (session.step === "slot") {
     if (session.intent === "price") {
-      const cat = detectCategory(transcript);
+      const cat = g?.category ?? detectCategory(transcript);
       if (!cat) return { reply: prompt("priceSlot", lang), done: false };
       session.slots.category = cat;
       session.step = "done";
       return { reply: `PRICE:${cat}`, done: true };
     }
     if (session.intent === "safety") {
-      const cat = detectCategory(transcript);
+      const cat = g?.category ?? detectCategory(transcript);
       if (!cat) return { reply: prompt("safetySlot", lang), done: false };
       session.slots.hazard = cat;
       session.step = "done";
       return { reply: safetyBrief(cat, lang), done: true };
     }
     // pickup: category (+ optional weight), then confirm-back
-    const cat = detectCategory(transcript);
-    const weightKg = parseWeightKg(transcript);
+    const cat = g?.category ?? detectCategory(transcript);
+    const weightKg = g?.weightKg ?? parseWeightKg(transcript);
     if (!cat) {
       const proposal = await ctx.exaLookup(transcript);
       if (proposal) {
@@ -260,7 +284,9 @@ export async function advanceVoice(
   }
 
   if (session.step === "confirm") {
-    if (isYes(transcript) && !isNo(transcript)) {
+    const saidYes = g?.confirm === "yes" || (isYes(transcript) && !isNo(transcript));
+    const saidNo = g?.confirm === "no" || isNo(transcript);
+    if (saidYes && !saidNo) {
       if (session.proposal && !session.slots.category) {
         session.slots.category = session.proposal;
         session.slots.needsReview = true;
@@ -284,35 +310,38 @@ export async function advanceVoice(
   return { reply: prompt("human", lang), done: true };
 }
 
+/** Trilingual scripts with Hindi fallback for the other 10 languages. */
+function phrasing(map: { hi: string; mr: string; en: string }, lang: VoiceLang): string {
+  return map[lang as "hi" | "mr" | "en"] ?? map.hi;
+}
+
 function confirmPickup(cat: MaterialCategory, weightKg: number | null, lang: VoiceLang): string {
   const what =
     weightKg
-      ? { hi: `${cat}, ${weightKg} kilo`, mr: `${cat}, ${weightKg} kilo`, en: `${cat}, ${weightKg} kilos` }[lang]
+      ? phrasing({ hi: `${cat}, ${weightKg} kilo`, mr: `${cat}, ${weightKg} kilo`, en: `${cat}, ${weightKg} kilos` }, lang)
       : cat;
-  const ask = {
+  const ask = phrasing({
     hi: "Samajh gaya. Kya yeh sahi hai? Haan ya na boliye.",
     mr: "Samajle. Hey barobar aahe ka? Ho ki nahi sanga.",
     en: "Understood. Is that right? Say yes or no.",
-  }[lang];
+  }, lang);
   return `${what}. ${ask}`;
 }
 
 function confirmProposal(cat: MaterialCategory, lang: VoiceLang): string {
-  const ask = {
+  return phrasing({
     hi: `Lagta hai yeh ${cat} hai — kya yeh sahi hai?`,
     mr: `Vatate he ${cat} aahe — hey barobar aahe ka?`,
     en: `It sounds like a ${cat} — is that right?`,
-  }[lang];
-  return ask;
+  }, lang);
 }
 
 function confirmGeneric(lang: VoiceLang): string {
-  const ask = {
+  return phrasing({
     hi: "Samajh nahin aaya. Mixed maal ke roop mein darj karoon? Haan ya na.",
     mr: "Samajle nahi. Mixed maal mhanun nond karu ka? Ho ki nahi.",
     en: "I couldn't identify it. Log as mixed material for manual review? Yes or no.",
-  }[lang];
-  return ask;
+  }, lang);
 }
 
 /** Turn latency bookkeeping: flag flows regularly breaching ~5s/turn. */

@@ -8,11 +8,12 @@ function esc(text: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+export type SayLang = "hi-IN" | "en-IN";
 
-export type SayLang = "hi-IN" | "mr-IN" | "en-IN";
-
-export function sayLang(lang: "hi" | "mr" | "en"): SayLang {
-  return lang === "hi" ? "hi-IN" : lang === "mr" ? "mr-IN" : "en-IN";
+/** Twilio <Say> coverage for Indic locales is uneven: English keeps its
+ *  voice, everything else uses Hindi-IN (best-effort, noted in docs). */
+export function sayLang(lang: string): SayLang {
+  return lang === "en" ? "en-IN" : "hi-IN";
 }
 
 export function gatherSay(

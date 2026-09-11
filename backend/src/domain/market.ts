@@ -1,4 +1,4 @@
-import type { MaterialCategory } from "./schemas.js";
+import type { MaterialCategory } from "./schemas";
 
 /**
  * Indicative market snapshot (NOT exchange data): wholesale/market buying

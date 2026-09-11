@@ -26,6 +26,12 @@ Akiri (SIH26229 Kabadiwala Connect, Team Nexus) brings informal e-waste/scrap co
   `TWILIO_AUTH_TOKEN` + exact public URL (`VOICE_PUBLIC_BASE_URL`).
   Phone lots are `pending_pickup` with NO chain entry until photo handover;
   callers are `voice:<hash12>` pseudonyms (salt `VOICE_SALT`).
+  Call agent: Muse Spark 1.3 contributor-free (`muse-spark-1.3-contributor-free`
+  via `/zen/v1/responses`) guides understanding in 13 Indian languages with
+  a per-request rate table; keyword detectors are the offline fallback.
+  NOTE (verified 2026-09-11): the free tier rejects raw API calls
+  ("can only be used in OpenCode") and paid needs a payment method — until
+  either is resolved the keyword path carries all turns.
 
 ## Development Commands
 

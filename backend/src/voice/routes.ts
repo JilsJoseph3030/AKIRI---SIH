@@ -9,17 +9,26 @@ import {
   pseudonymizeCaller,
   recordTurnLatency,
 } from "../domain/voice";
-import type { ExaLookup, VoiceSession } from "../domain/voice";
+import type { ExaLookup, VoiceLang, VoiceSession } from "../domain/voice";
 import type { MaterialCategory, Transaction } from "../domain/schemas";
 import { MATERIALS, PRICES } from "../domain/index";
+import { guideVoiceTurn } from "./guide";
 import { computeTwilioSignature, validTwilioSignature } from "./signature";
 import { gatherSay, sayHangup, sayLang, twimlXml } from "./twiml";
 import { lots } from "../store";
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
-
 /** In-memory call sessions (same vertical-slice tradeoff as store.ts). */
-const sessions = new Map<string, { session: VoiceSession; salt: string; from: string }>();
+const sessions = new Map<string, { session: VoiceSession; salt: string; from: string; updatedAt: number }>();
+
+const SESSION_TTL_MS = 15 * 60 * 1000;
+
+function touch(callSid: string, entry: { session: VoiceSession; salt: string; from: string }): void {
+  sessions.set(callSid, { ...entry, updatedAt: Date.now() });
+  for (const [sid, e] of sessions) {
+    if (Date.now() - e.updatedAt > SESSION_TTL_MS) sessions.delete(sid);
+  }
+}
 
 async function readForm(c: {
   req: { parseBody: () => Promise<Record<string, string | File>> };
@@ -69,15 +78,17 @@ const exaLookup: ExaLookup = async (descriptionEn: string) => {
   }
 };
 
-function priceLine(category: MaterialCategory, lang: "hi" | "mr" | "en"): string {
+function priceLine(category: MaterialCategory, lang: VoiceLang): string {
   const rates = PRICES.filter((p) => p.category === category).map((p) => p.ratePerKg);
   if (rates.length === 0) return "";
   const min = Math.min(...rates);
   const max = Math.max(...rates);
-  const label = MATERIALS.find((m) => m.category === category)?.label[lang] ?? category;
-  if (lang === "hi") return `${label} ka bhaav ${min === max ? min : `${min} se ${max}`} rupaye kilo.`;
+  const labels = MATERIALS.find((m) => m.category === category)?.label;
+  // Scripted hi/mr/en labels; other languages hear Hindi (widely understood).
+  const label = labels?.[lang] ?? labels?.hi ?? category;
   if (lang === "mr") return `${label} cha bhaav ${min === max ? min : `${min} te ${max}`} rupaye kilo.`;
-  return `${label}: ${min === max ? min : `${min} to ${max}`} rupees per kilo.`;
+  if (lang === "en") return `${label}: ${min === max ? min : `${min} to ${max}`} rupees per kilo.`;
+  return `${label} ka bhaav ${min === max ? min : `${min} se ${max}`} rupaye kilo.`;
 }
 
 export const voice = new Hono<{ Variables: { voiceParams: Record<string, string> } }>();
@@ -104,7 +115,7 @@ voice.post("/voice/incoming", (c) => {
   const callSid = params.CallSid ?? `call-${Date.now()}`;
   const from = params.From ?? "unknown";
   const salt = process.env.VOICE_SALT ?? "akiri-voice";
-  sessions.set(callSid, { session: newVoiceSession(callSid), salt, from });
+  touch(callSid, { session: newVoiceSession(callSid), salt, from });
   const base = process.env.VOICE_PUBLIC_BASE_URL ?? "";
   const action = `${base}/voice/turn?CallSid=${encodeURIComponent(callSid)}`;
   return twimlXml(gatherSay("Namaste! Hindi, Marathi, English?", action, "hi-IN"));
@@ -116,10 +127,18 @@ voice.post("/voice/turn", async (c) => {
   const entry = sessions.get(callSid);
   if (!entry) return twimlXml(sayHangup("Session expired.", "en-IN"));
   const { session, salt, from } = entry;
+  touch(callSid, { session, salt, from });
   const started = Date.now();
   const transcript = params.SpeechResult ?? params.Digits ?? "";
   const pseudonym = await pseudonymizeCaller(sha256, from, salt);
-  const turn = await advanceVoice(session, transcript, pseudonym, { exaLookup });
+  // Muse Spark guides understanding (any Indian language); null on any
+  // failure and the keyword detectors carry the turn instead.
+  const guide = await guideVoiceTurn(process.env.OPENCODE_ZEN_API_KEY ?? "", {
+    transcript,
+    step: session.step,
+    currentLang: session.lang,
+  });
+  const turn = await advanceVoice(session, transcript, pseudonym, { exaLookup, guide });
   recordTurnLatency(session, Date.now() - started);
   if (latencyBreached(session)) {
     console.warn(`voice latency breach on ${callSid}: ${session.turnLatenciesMs.join(",")}`);

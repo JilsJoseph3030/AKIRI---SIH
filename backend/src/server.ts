@@ -190,7 +190,7 @@ app.post("/market/refresh", async (c) => {
   return c.json({ asOf: new Date().toISOString().slice(0, 10), exa: data });
 });
 
-// Serve when run directly: node --experimental-strip-types src/server.ts
+// Serve when run directly: tsx src/server.ts (npm run dev)
 if (process.argv[1]?.endsWith("server.ts")) {
   serve({ fetch: app.fetch, port: 8080 }, (info) =>
     console.log(`Akiri API on http://localhost:${info.port}`),
