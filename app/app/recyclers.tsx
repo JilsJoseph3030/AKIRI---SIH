@@ -40,7 +40,7 @@ export default function Recyclers() {
 
 const styles = StyleSheet.create({
   wrap: { padding: 20, gap: 10 },
-  card: { backgroundColor: theme.card, borderRadius: theme.radius, padding: 18, gap: 4 },
+  card: { backgroundColor: theme.card, borderColor: theme.line, borderWidth: 1, borderRadius: theme.radius, padding: 18, gap: 4 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   name: { color: theme.ink, fontSize: 18, fontWeight: "800", flex: 1 },
   ok: { color: theme.accent, fontSize: 15, fontWeight: "700" },

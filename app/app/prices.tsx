@@ -89,6 +89,8 @@ const styles = StyleSheet.create({
   head: { color: theme.ink, fontSize: 26, fontWeight: "800" },
   card: {
     backgroundColor: theme.card,
+    borderColor: theme.line,
+    borderWidth: 1,
     borderRadius: theme.radiusLg,
     borderLeftWidth: 12,
     padding: 24,

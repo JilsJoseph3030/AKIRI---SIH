@@ -98,7 +98,7 @@ export default function Snap() {
       <Pressable style={styles.save} onPress={save}>
         <View style={styles.saveRow}>
           <Text style={styles.saveText}>{t("value")}: ₹{value}</Text>
-          <MCIcon name="content-save" size={22} color="#101613" />
+          <MCIcon name="content-save" size={22} color={theme.accentInk} />
         </View>
       </Pressable>
     </View>
@@ -107,12 +107,12 @@ export default function Snap() {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, padding: 20, gap: 12 },
-  cam: { height: 280, borderRadius: theme.radius, backgroundColor: theme.card, alignItems: "center", justifyContent: "center" },
-  big: { backgroundColor: theme.card, borderRadius: 999, width: 84, height: 84, alignItems: "center", justifyContent: "center", alignSelf: "center" },
+  cam: { height: 280, borderRadius: theme.radius, backgroundColor: "#E2E8F0", alignItems: "center", justifyContent: "center" },
+  big: { backgroundColor: theme.card, borderColor: theme.line, borderWidth: 1, borderRadius: 999, width: 84, height: 84, alignItems: "center", justifyContent: "center", alignSelf: "center" },
   cat: { color: theme.accent, fontSize: 20, fontWeight: "800" },
   label: { color: theme.sub, fontSize: 15 },
-  input: { backgroundColor: theme.card, color: theme.ink, fontSize: 28, borderRadius: theme.radius, padding: 14 },
+  input: { backgroundColor: theme.card, borderColor: theme.line, borderWidth: 1, color: theme.ink, fontSize: 28, borderRadius: theme.radius, padding: 14 },
   save: { backgroundColor: theme.accent, borderRadius: theme.radius, padding: 18, alignItems: "center" },
   saveRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  saveText: { color: "#101613", fontSize: 19, fontWeight: "800" },
+  saveText: { color: theme.accentInk, fontSize: 19, fontWeight: "800" },
 });

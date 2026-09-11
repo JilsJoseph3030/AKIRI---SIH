@@ -5,6 +5,17 @@ const BASE = process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 const MOCK = (process.env.EXPO_PUBLIC_API_MOCK ?? "true") === "true";
 
 /**
+ * ngrok free tier serves a browser-warning interstitial unless this header
+ * is present — without it API calls get HTML instead of JSON.
+ */
+function headers(): Record<string, string> {
+  return {
+    "content-type": "application/json",
+    "ngrok-skip-browser-warning": "true",
+  };
+}
+
+/**
  * Typed API client. Mock fixtures serve the demo when the backend is not
  * reachable; set EXPO_PUBLIC_API_MOCK=false to force live calls.
  */
@@ -19,7 +30,7 @@ export async function postLot(input: {
     try {
       const res = await fetch(`${BASE}/lots`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: headers(),
         body: JSON.stringify(input),
       });
       if (res.ok) {
@@ -33,7 +44,7 @@ export async function postLot(input: {
   }
   const res = await fetch(`${BASE}/lots`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: headers(),
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error(`lot upload failed: ${res.status}`);

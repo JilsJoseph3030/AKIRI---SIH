@@ -9,33 +9,42 @@ import { ttsLocale, type AppLanguage } from "../lib/i18n";
 export type IconName = ComponentProps<typeof MCIcon>["name"];
 
 export const theme = {
-  bg: "#101613",
-  card: "#1B241E",
-  ink: "#F2F5F0",
-  sub: "#A9B8AC",
-  accent: "#7BD88F",
-  warn: "#F2B134",
-  danger: "#E4572E",
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  line: "#E2E8F0",
+  ink: "#0F172A",
+  sub: "#64748B",
+  accent: "#2563EB",
+  accentInk: "#FFFFFF",
+  warn: "#F59E0B",
+  danger: "#EF4444",
+  success: "#059669",
   radius: 14,
   radiusLg: 28,
 };
 
 /** Left-strip / icon colors per material category (draft's color-coded rates). */
 export const strip: Record<string, string> = {
-  pcb: "#B388FF",
-  cable: "#5B9CFF",
-  battery: "#E4572E",
-  motor_magnet: "#F2B134",
-  lcd_panel: "#4FD1C5",
-  crt: "#94A3B8",
-  mixed_plastics: "#7BD88F",
+  pcb: "#8B5CF6",
+  cable: "#2563EB",
+  battery: "#EF4444",
+  motor_magnet: "#F59E0B",
+  lcd_panel: "#0EA5E9",
+  crt: "#64748B",
+  mixed_plastics: "#10B981",
 };
 
 export const tint = {
-  dangerBg: "#2A1A14",
-  dangerBd: "#5A2E1E",
-  okBg: "#14241A",
-  okBd: "#2C4A34",
+  dangerBg: "#FEF2F2",
+  dangerBd: "#FECACA",
+  dangerInk: "#991B1B",
+  okBg: "#ECFDF5",
+  okBd: "#A7F3D0",
+  okInk: "#065F46",
+  infoBg: "#DBEAFE",
+  infoInk: "#1D4ED8",
+  warnBg: "#FFFBEB",
+  warnInk: "#B45309",
 };
 
 export function AudioButton({ text, lang }: { text: string; lang: AppLanguage }) {
@@ -47,7 +56,7 @@ export function AudioButton({ text, lang }: { text: string; lang: AppLanguage })
       style={[styles.audio, styles.audioRow]}
       onPress={() => Speech.speak(text, { language: ttsLocale[lang] })}
     >
-      <MCIcon name="volume-high" size={20} color="#F2F5F0" />
+      <MCIcon name="volume-high" size={20} color={tint.infoInk} />
       <Text style={styles.audioText}>{t("listen")}</Text>
     </Pressable>
   );
@@ -55,20 +64,20 @@ export function AudioButton({ text, lang }: { text: string; lang: AppLanguage })
 
 const styles = StyleSheet.create({
   audio: {
-    backgroundColor: "#24402C",
+    backgroundColor: tint.infoBg,
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 16,
     alignSelf: "flex-start",
   },
-  audioText: { color: "#F2F5F0", fontSize: 16, fontWeight: "700" },
+  audioText: { color: tint.infoInk, fontSize: 16, fontWeight: "700" },
   audioRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   /** 64px round TTS button for rate/safety cards (draft's speaker buttons). */
   dot: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "#24402C",
+    backgroundColor: tint.infoBg,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -77,8 +86,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  sectionTitle: { color: "#F2F5F0", fontSize: 24, fontWeight: "800" },
-  sectionAction: { color: "#7BD88F", fontSize: 17, fontWeight: "700" },
+  sectionTitle: { color: theme.ink, fontSize: 24, fontWeight: "800" },
+  sectionAction: { color: theme.accent, fontSize: 17, fontWeight: "700" },
 });
 
 /** Large round text-to-speech button (min 64px target, low-literacy friendly). */
@@ -91,7 +100,7 @@ export function SpeakDot({ text, lang }: { text: string; lang: AppLanguage }) {
       style={styles.dot}
       onPress={() => Speech.speak(text, { language: ttsLocale[lang] })}
     >
-      <MCIcon name="volume-high" size={30} color="#F2F5F0" />
+      <MCIcon name="volume-high" size={30} color={tint.infoInk} />
     </Pressable>
   );
 }

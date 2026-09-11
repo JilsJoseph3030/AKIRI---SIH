@@ -22,6 +22,7 @@ export default function Safety() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
         {CARDS.map((card, i) => {
           const ok = i === CARDS.length - 1;
+          const ink = ok ? tint.okInk : tint.dangerInk;
           return (
             <View
               key={card.en}
@@ -35,9 +36,9 @@ export default function Safety() {
               <MCIcon
                 name={card.icon}
                 size={64}
-                color={ok ? theme.accent : theme.danger}
+                color={ink}
               />
-              <Text style={styles.text}>{card[lang]}</Text>
+              <Text style={[styles.text, { color: ink }]}>{card[lang]}</Text>
               <AudioButton text={card[lang]} lang={lang} />
             </View>
           );
