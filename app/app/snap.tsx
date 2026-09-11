@@ -75,8 +75,17 @@ export default function Snap() {
       if (!photo?.uri) return;
       setPhotoUri(photo.uri);
       const results = await classifier.classify(photo.uri);
-      setGuesses(results);
-      if (results[0]) setCategory(results[0].category);
+      // Guard: a model may repeat a category (the mock returns
+      // mixed_plastics twice when it is the top guess) — chip keys
+      // must stay unique or React drops/duplicates children.
+      const seen = new Set<MaterialCategory>();
+      const unique = results.filter((r) => {
+        if (seen.has(r.category)) return false;
+        seen.add(r.category);
+        return true;
+      });
+      setGuesses(unique);
+      if (unique[0]) setCategory(unique[0].category);
     } finally {
       setBusy(false);
     }
