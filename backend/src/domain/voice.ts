@@ -24,6 +24,10 @@ export interface VoiceSession {
   proposal?: MaterialCategory | null;
   exaLog?: { query: string; evidence: string };
   turnLatenciesMs: number[];
+  /** Unrecognized-intent attempts; human fallback only after cap. */
+  intentRetries: number;
+  /** Unmatched-slot attempts per flow; human redirect only after cap. */
+  slotRetries: number;
 }
 
 export function newVoiceSession(callSid: string): VoiceSession {
@@ -34,16 +38,21 @@ export function newVoiceSession(callSid: string): VoiceSession {
     step: "language",
     slots: {},
     turnLatenciesMs: [],
+    intentRetries: 0,
+    slotRetries: 0,
   };
 }
+
+/** DTMF-first menu (reliable on noisy lines); speech names still work. */
+const DIGIT_LANG: Record<string, VoiceLang> = { "1": "hi", "2": "mr", "3": "en", "4": "ml" };
 
 /** Single-question-at-a-time prompts, no jargon. */
 const PROMPTS: Record<string, Record<string, string>> = {
   language: {
-    hi: "Namaste! Bhasha chunein. Hindi ke liye Hindi boliye.",
-    mr: "Namaskar! Bhasha nivda. Marathi sathi Marathi bola.",
-    en: "Hello! Please say Hindi, Marathi, or English to choose your language.",
-    ml: "Namaskaram! Malayalam samsarikkuvan Malayalam parayoo.",
+    hi: "Namaste! Hindi ke liye 1, Marathi ke liye 2, English ke liye 3, Malayalam ke liye 4 dabayein.",
+    mr: "Namaskar! Hindi sathi 1, Marathi sathi 2, English sathi 3, Malayalam sathi 4 daba.",
+    en: "Hello! Press 1 for Hindi, 2 for Marathi, 3 for English, 4 for Malayalam.",
+    ml: "Namaskaram! Hindi 1, Marathi 2, English 3, Malayalam 4 amarthoo.",
   },
   intent: {
     hi: "Aap kya karna chahte hain? Bhaav, pickup, ya suraksha jaankari?",
@@ -239,30 +248,46 @@ export async function advanceVoice(
   const g = ctx.guide ?? null;
 
   if (session.step === "language") {
-    session.lang = ctx.guide?.lang ?? detectLanguage(transcript) ?? "hi";
+    const digit = DIGIT_LANG[transcript.trim()] ?? null;
+    session.lang = digit ?? ctx.guide?.lang ?? detectLanguage(transcript) ?? session.lang ?? "hi";
     session.step = "intent";
     return { reply: prompt("intent", session.lang), done: false };
   }
 
   if (session.step === "intent") {
-    session.intent = ctx.guide?.intent ?? detectIntent(transcript);
+    const intent = ctx.guide?.intent ?? detectIntent(transcript);
+    // Never hang up on a garbled first try: reprompt twice, human fallback after.
+    if (intent === "human" && session.intentRetries < 2) {
+      session.intentRetries += 1;
+      return { reply: prompt("intent", lang), done: false };
+    }
+    session.intent = intent;
     session.step = session.intent === "human" ? "done" : "slot";
+    session.slotRetries = 0;
     if (session.intent === "human") return { reply: prompt("human", lang), done: true };
     const key = session.intent === "price" ? "priceSlot" : session.intent === "pickup" ? "pickupSlot" : "safetySlot";
     return { reply: prompt(key, lang), done: false };
   }
-
   if (session.step === "slot") {
+    const missed = () => {
+      session.slotRetries += 1;
+      if (session.slotRetries >= 3) {
+        session.step = "done";
+        return { reply: prompt("human", lang), done: true };
+      }
+      const key = session.intent === "price" ? "priceSlot" : session.intent === "safety" ? "safetySlot" : "pickupSlot";
+      return { reply: prompt(key, lang), done: false };
+    };
     if (session.intent === "price") {
       const cat = g?.category ?? detectCategory(transcript);
-      if (!cat) return { reply: prompt("priceSlot", lang), done: false };
+      if (!cat) return missed();
       session.slots.category = cat;
       session.step = "done";
       return { reply: `PRICE:${cat}`, done: true };
     }
     if (session.intent === "safety") {
       const cat = g?.category ?? detectCategory(transcript);
-      if (!cat) return { reply: prompt("safetySlot", lang), done: false };
+      if (!cat) return missed();
       session.slots.hazard = cat;
       session.step = "done";
       return { reply: safetyBrief(cat, lang), done: true };

@@ -322,3 +322,35 @@ describe("malayalam support and full-listen turns", () => {
     expect(done.write?.slots.category).toBe("battery");
   });
 });
+
+describe("resilient call flow (no premature hangup)", () => {
+  it("maps DTMF digits to languages", async () => {
+    for (const [digit, lang] of [["1", "hi"], ["2", "mr"], ["3", "en"], ["4", "ml"]] as const) {
+      const s = newVoiceSession(`CA-d${digit}`);
+      const t = await advanceVoice(s, digit, "voice:abc", { exaLookup: noopExa });
+      expect(s.lang).toBe(lang);
+      expect(t.done).toBe(false);
+    }
+  });
+
+  it("reprompts garbled intents twice before human fallback", async () => {
+    const s = newVoiceSession("CA-retry");
+    await advanceVoice(s, "1", "voice:abc", { exaLookup: noopExa });
+    let t = await advanceVoice(s, "weather kaisa hai", "voice:abc", { exaLookup: noopExa });
+    expect(t.done).toBe(false); // first garble: reprompt, NOT hangup
+    t = await advanceVoice(s, "cricket score", "voice:abc", { exaLookup: noopExa });
+    expect(t.done).toBe(false); // second garble: reprompt again
+    t = await advanceVoice(s, "film ka gana", "voice:abc", { exaLookup: noopExa });
+    expect(t.done).toBe(true); // third strike: human redirect + close
+    expect(s.intent).toBe("human");
+  });
+
+  it("understood intents never touch the retry path", async () => {
+    const s = newVoiceSession("CA-ok");
+    await advanceVoice(s, "hindi", "voice:abc", { exaLookup: noopExa });
+    const t = await advanceVoice(s, "bhaav batao", "voice:abc", { exaLookup: noopExa });
+    expect(s.intent).toBe("price");
+    expect(t.done).toBe(false);
+    expect(s.intentRetries).toBe(0);
+  });
+});
