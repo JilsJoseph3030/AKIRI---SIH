@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Info, MessageCircle, Send, Sprout, X } from "lucide-react";
 
 interface Msg {
   role: "user" | "assistant";
@@ -52,7 +53,7 @@ export default function AssistantWidget() {
         className="fab"
         aria-label="Open Akiri assistant"
       >
-        💬
+        <MessageCircle size={26} aria-hidden="true" />
       </button>
     );
   }
@@ -71,14 +72,14 @@ export default function AssistantWidget() {
             aria-label="About this assistant"
             aria-expanded={about}
           >
-            ⓘ
+            <Info size={16} aria-hidden="true" />
           </button>
           <button
             onClick={() => setOpen(false)}
             className="chat-mini"
             aria-label="Close assistant"
           >
-            ✕
+            <X size={16} aria-hidden="true" />
           </button>
         </span>
       </div>
@@ -93,7 +94,9 @@ export default function AssistantWidget() {
       <div className="chat-thread" aria-live="polite">
         {log.length === 0 ? (
           <div className="chat-empty">
-            <span className="big" aria-hidden="true">🌱</span>
+            <span className="big" aria-hidden="true">
+              <Sprout size={32} />
+            </span>
             <strong>Namaste! I’m Sahayak.</strong>
             Ask about handovers, pricing, or EPR — or try one below.
             <div className="chips">
@@ -137,7 +140,8 @@ export default function AssistantWidget() {
           disabled={busy || !input.trim()}
           aria-label="Send question"
         >
-          ↑<span aria-hidden="true">Send</span>
+          <Send size={15} aria-hidden="true" />
+          <span aria-hidden="true">Send</span>
         </button>
       </div>
     </div>

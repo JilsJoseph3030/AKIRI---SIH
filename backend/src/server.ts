@@ -1,5 +1,6 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { createHash } from "node:crypto";
 import {
   MARKET_AS_OF,
@@ -42,6 +43,11 @@ interface ConfirmIntake {
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
 export const app = new Hono();
+
+// The dashboard and phone app call the API cross-origin (different
+// port/host, or a public tunnel like ngrok) — allow it. No cookies or
+// credentials are used, so a wildcard origin is sufficient for this demo.
+app.use("*", cors());
 app.route("/", voice);
 
 
