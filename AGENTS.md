@@ -20,6 +20,12 @@ Akiri (SIH26229 Kabadiwala Connect, Team Nexus) brings informal e-waste/scrap co
 - `backend/src/domain/` — pure logic (see above). `backend/src/server.ts` + `store.ts` — API + store. `backend/tests/` — vitest suites.
 - `web/app/` — `page.tsx` (landing), `dashboard/page.tsx` (client lot queue), `api/assistant/route.ts` (server proxy). `web/components/AssistantWidget.tsx`, `web/lib/knowledge.ts`.
 - `docs/knowledge-base/` — 6 grounding docs: `brief`, `features`, `epr-basics`, `handover`, `pricing`, `faq`.
+- Voice channel (`backend/src/voice/` + `domain/voice.ts`): Gather-based
+  TwiML turns (no Media Streams/Pipecat — second runtime unjustified for
+  3 flows). All `/voice/*` webhooks gated by HMAC-SHA1 signature against
+  `TWILIO_AUTH_TOKEN` + exact public URL (`VOICE_PUBLIC_BASE_URL`).
+  Phone lots are `pending_pickup` with NO chain entry until photo handover;
+  callers are `voice:<hash12>` pseudonyms (salt `VOICE_SALT`).
 
 ## Development Commands
 
@@ -35,7 +41,7 @@ cd app && EXPO_PUBLIC_API_BASE_URL=http://<pc-lan-ip>:8080 npx expo start  # phy
 
 ## Code Conventions & Common Patterns
 
-- TypeScript strict everywhere (`tsconfig.base.json`: ES2022, bundler resolution, `noEmit`); domain imports use `.js`-suffixed relatives. No ESLint/Prettier configured.
+- TypeScript strict everywhere (`tsconfig.base.json`: ES2022, bundler resolution, `noEmit`); relative imports are extensionless (Metro cannot resolve NodeNext `.js` suffixes). No ESLint/Prettier configured.
 - Domain logic lives in `backend/src/domain`; apps hold UI + platform adapters only. Never leak pricing/ranking/ledger math into components.
 - Boundary validation, no blind casts: Hono routes assert `LotIntake`/`ConfirmIntake` then check each field (`isCategory` guard); dashboard parses network JSON via `isLot`/`toLot`/`asLots` guards with mock fallback.
 - Errors: typed JSON + status codes (`{ error }` 400/404); sync failures stay queued and break the flush loop for retry. No swallowed failures.

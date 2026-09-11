@@ -13,6 +13,7 @@ import {
 } from "./domain/index";
 import type { MaterialCategory, Transaction } from "./domain/schemas";
 import { chains, exportRows, lots, PRICES, RECYCLERS } from "./store";
+import { voice } from "./voice/routes";
 
 function isCategory(value: unknown): value is MaterialCategory {
   return (
@@ -41,8 +42,8 @@ interface ConfirmIntake {
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
 export const app = new Hono();
+app.route("/", voice);
 
-app.get("/health", (c) => c.json({ ok: true }));
 
 app.get("/prices", (c) => {
   const location = c.req.query("location");
