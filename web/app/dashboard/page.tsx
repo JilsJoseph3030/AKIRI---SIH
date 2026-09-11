@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AssistantWidget from "../../components/AssistantWidget";
+import MarketBoard from "../../components/MarketBoard";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
@@ -172,6 +173,8 @@ export default function Dashboard() {
           <div style={statCap}>Total lot value</div>
         </div>
       </section>
+
+      <MarketBoard />
 
       <div style={toolbar}>
         <div style={tabs}>

@@ -2,6 +2,8 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { createHash } from "node:crypto";
 import {
+  MARKET_AS_OF,
+  MARKET_SNAPSHOT,
   MATERIAL_CATEGORIES,
   confirmHandover,
   createEntry,
@@ -152,6 +154,39 @@ app.get("/export", (c) => {
       "content-disposition": `attachment; filename="akiri-transactions.${format}"`,
     },
   });
+});
+
+app.get("/market", (c) =>
+  c.json({ asOf: MARKET_AS_OF, rows: MARKET_SNAPSHOT }),
+);
+
+/**
+ * Live refresh via Exa web research (recommended request shape: query +
+ * highlights only). Needs EXA_API_KEY server-side; without it the board
+ * keeps serving the researched snapshot above.
+ */
+app.post("/market/refresh", async (c) => {
+  const key = process.env.EXA_API_KEY;
+  if (!key) {
+    return c.json(
+      { error: "EXA_API_KEY not configured; serving snapshot" },
+      503,
+    );
+  }
+  const res = await fetch("https://api.exa.ai/search", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": key },
+    body: JSON.stringify({
+      query: "scrap copper aluminium e-waste PCB battery plastic rate per kg India",
+      contents: { highlights: true },
+    }),
+  });
+  if (!res.ok) return c.json({ error: `exa search failed: ${res.status}` }, 502);
+  const data: unknown = await res.json();
+  if (!data || typeof data !== "object" || !("results" in data)) {
+    return c.json({ error: "unexpected exa response shape" }, 502);
+  }
+  return c.json({ asOf: new Date().toISOString().slice(0, 10), exa: data });
 });
 
 // Serve when run directly: node --experimental-strip-types src/server.ts
