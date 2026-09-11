@@ -14,11 +14,13 @@ import {
   LayoutGrid,
   Magnet,
   Megaphone,
+  MessageCircle,
   Monitor,
   Package,
   Recycle,
   RefreshCw,
   ShieldCheck,
+  TrendingUp,
   Tv,
   Wallet,
 } from "lucide-react";
@@ -106,6 +108,15 @@ const TABS: { key: Filter; label: string; icon: LucideIcon }[] = [
   { key: "confirmed", label: "Sealed", icon: Check },
 ];
 
+interface QuickAction {
+  label: string;
+  hint: string;
+  icon: LucideIcon;
+  tint: "tint-bright" | "tint-deep" | "tint-amber" | "tint-green";
+  href?: string;
+  onClick?: () => void;
+}
+
 export default function Dashboard() {
   const [lots, setLots] = useState<Lot[]>([]);
   const [live, setLive] = useState(false);
@@ -145,6 +156,38 @@ export default function Dashboard() {
 
   const visible = lots.filter((l) => filter === "all" || l.status === filter);
 
+  const ACTIONS: QuickAction[] = [
+    {
+      label: "Confirm handover",
+      hint: "Seal a collector lot",
+      icon: Check,
+      tint: "tint-bright",
+      href: "#lots",
+      onClick: () => setFilter("offered"),
+    },
+    {
+      label: "Market rates",
+      hint: "Indicative prices",
+      icon: TrendingUp,
+      tint: "tint-deep",
+      href: "#market",
+    },
+    {
+      label: "Export data",
+      hint: "EPR-ready CSV",
+      icon: Download,
+      tint: "tint-amber",
+      href: `${API}/export?format=csv`,
+    },
+    {
+      label: "Ask Sahayak",
+      hint: "Help in seconds",
+      icon: MessageCircle,
+      tint: "tint-green",
+      onClick: () => window.dispatchEvent(new Event("akiri:open-assistant")),
+    },
+  ];
+
   async function confirm(id: string) {
     setConfirming(id);
     try {
@@ -175,7 +218,9 @@ export default function Dashboard() {
 
   return (
     <div className="page">
-      <header className="page-head">
+      <section className="hero">
+        <Recycle size={220} className="hero-watermark" aria-hidden="true" />
+        <header className="hero-head">
         <div className="brand-block">
           <span className="logo-badge" aria-hidden="true">
             <Recycle size={28} />
@@ -195,7 +240,43 @@ export default function Dashboard() {
             <ShieldCheck size={13} aria-hidden="true" /> Authorized
           </span>
         </div>
-      </header>
+        </header>
+        <div className="actions">
+          {ACTIONS.map((a) => {
+            const Icon = a.icon;
+            const inner = (
+              <>
+                <span className={`action-icon ${a.tint}`} aria-hidden="true">
+                  <Icon size={24} />
+                </span>
+                <span>
+                  <span className="action-label">{a.label}</span>
+                  <span className="action-hint">{a.hint}</span>
+                </span>
+              </>
+            );
+            return a.href ? (
+              <a
+                key={a.label}
+                href={a.href}
+                onClick={a.onClick}
+                className="action"
+              >
+                {inner}
+              </a>
+            ) : (
+              <button
+                key={a.label}
+                type="button"
+                onClick={a.onClick}
+                className="action"
+              >
+                {inner}
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       {!live && (
         <div className="alert alert-amber" role="status">
@@ -253,6 +334,52 @@ export default function Dashboard() {
         </div>
       </section>
 
+      <section className="dashboard-visual-banner" aria-label="Visual verification and material guide">
+        <div className="section-head" style={{ margin: "0 0 12px" }}>
+          <div>
+            <p className="eyebrow">Visual Field Guide</p>
+            <h2 style={{ fontSize: "19px" }}>Ground Collection & Processing Ecosystem</h2>
+          </div>
+        </div>
+        <div className="guide-grid">
+          <div className="guide-card">
+            <img src="/images/collector-informal.png" alt="Informal scrap collector sorting materials" />
+            <div className="guide-card-info">
+              <p className="guide-card-title">Informal Collector</p>
+              <p className="guide-card-sub">Doorstep Kabadiwala batch</p>
+            </div>
+          </div>
+          <div className="guide-card">
+            <img src="/images/collector-formal.jpg" alt="Formal worker with green waste truck" />
+            <div className="guide-card-info">
+              <p className="guide-card-title">Safety Handover</p>
+              <p className="guide-card-sub">Verified intake protocol</p>
+            </div>
+          </div>
+          <div className="guide-card">
+            <img src="/images/ewaste-items.jpg" alt="E-waste items" />
+            <div className="guide-card-info">
+              <p className="guide-card-title">E-Waste Stream</p>
+              <p className="guide-card-sub">PCB, Cable, Battery, Screens</p>
+            </div>
+          </div>
+          <div className="guide-card">
+            <img src="/images/waste-bins.jpg" alt="Waste segregation bins" />
+            <div className="guide-card-info">
+              <p className="guide-card-title">Sorting Bins</p>
+              <p className="guide-card-sub">Glass, Paper, Metal, Plastic</p>
+            </div>
+          </div>
+          <div className="guide-card">
+            <img src="/images/recycling-facility.jpg" alt="Recycling conveyor belt" />
+            <div className="guide-card-info">
+              <p className="guide-card-title">Recycling Plant</p>
+              <p className="guide-card-sub">MIDC Hingna Recovery Line</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <MarketBoard />
 
       <div className="section-head">
@@ -289,7 +416,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <section className="lot-list" aria-label="Incoming lots">
+      <section className="lot-list" id="lots" aria-label="Incoming lots">
         {visible.map((lot) => {
           const sealed = lot.status === "confirmed";
           const CatIcon = CATEGORY_ICON[lot.category] ?? Package;

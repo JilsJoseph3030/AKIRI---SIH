@@ -111,7 +111,7 @@ export default function MarketBoard() {
   }
 
   return (
-    <section className="market" aria-label="Market price board">
+    <section className="market" id="market" aria-label="Market price board">
       <div className="market-head">
         <div>
           <p className="eyebrow">Indicative rates</p>
