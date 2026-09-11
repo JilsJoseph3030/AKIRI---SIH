@@ -1,4 +1,5 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import MCIcon from "@expo/vector-icons/MaterialCommunityIcons";
 import { useTranslation } from "react-i18next";
 import { useApp } from "../lib/store";
 import { theme } from "../components/ui";
@@ -12,18 +13,27 @@ export default function Earnings() {
 
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
-      <View style={styles.big}>
+      <View style={styles.hero}>
+        <Text style={styles.cap}>{t("todayEarn")}</Text>
         <Text style={styles.bigNum}>₹{sum(confirmed)}</Text>
-        <Text style={styles.cap}>{t("total")}</Text>
-      </View>
-      <View style={styles.big}>
-        <Text style={styles.bigNum}>₹{sum(pending)}</Text>
-        <Text style={styles.cap}>{t("pending")}</Text>
+        <View style={styles.split}>
+          <View>
+            <Text style={styles.capSm}>{t("pending")}</Text>
+            <Text style={styles.splitNum}>₹{sum(pending)}</Text>
+          </View>
+          <View style={styles.right}>
+            <Text style={styles.capSm}>{t("total")}</Text>
+            <Text style={styles.splitNum}>₹{sum(confirmed) + sum(pending)}</Text>
+          </View>
+        </View>
       </View>
       <Text style={styles.head}>{t("history")}</Text>
       {lots.map((l) => (
         <View key={l.id} style={styles.row}>
-          <Text style={styles.rowText}>💵 {l.category} · {l.weightKg} kg</Text>
+          <View style={styles.rowLeft}>
+            <MCIcon name="currency-inr" size={18} color={theme.sub} />
+            <Text style={styles.rowText}>{l.category} · {l.weightKg} kg</Text>
+          </View>
           <Text style={styles.rowNum}>₹{l.valueInr}</Text>
         </View>
       ))}
@@ -32,15 +42,27 @@ export default function Earnings() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: 20, gap: 10 },
-  big: { backgroundColor: theme.card, borderRadius: theme.radius, padding: 22, alignItems: "center" },
-  bigNum: { color: theme.accent, fontSize: 40, fontWeight: "800" },
-  cap: { color: theme.sub, fontSize: 15 },
-  head: { color: theme.ink, fontSize: 18, fontWeight: "800", marginTop: 8 },
+  wrap: { padding: 20, gap: 16 },
+  hero: {
+    backgroundColor: "#0C100D",
+    borderColor: "#223026",
+    borderWidth: 1,
+    borderRadius: 32,
+    padding: 32,
+    gap: 6,
+  },
+  cap: { color: theme.sub, fontSize: 18, fontWeight: "700" },
+  bigNum: { color: theme.accent, fontSize: 56, fontWeight: "800" },
+  split: { flexDirection: "row", justifyContent: "space-between", marginTop: 16 },
+  capSm: { color: theme.sub, fontSize: 14, fontWeight: "700" },
+  splitNum: { color: theme.ink, fontSize: 24, fontWeight: "800" },
+  right: { alignItems: "flex-end" },
+  head: { color: theme.ink, fontSize: 22, fontWeight: "800", marginTop: 8 },
   row: {
     backgroundColor: theme.card, borderRadius: theme.radius, padding: 16,
-    flexDirection: "row", justifyContent: "space-between",
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
+  rowLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
   rowText: { color: theme.ink, fontSize: 16 },
   rowNum: { color: theme.ink, fontSize: 16, fontWeight: "800" },
 });

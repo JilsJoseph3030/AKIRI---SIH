@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import MCIcon from "@expo/vector-icons/MaterialCommunityIcons";
 import { useTranslation } from "react-i18next";
 import i18n, { type AppLanguage } from "../lib/i18n";
 import { useApp } from "../lib/store";
@@ -35,7 +36,10 @@ export default function Settings() {
         ))}
       </View>
       <View style={styles.cash}>
-        <Text style={styles.cashText}>💵 {t("cashDefault")}</Text>
+        <View style={styles.cashRow}>
+          <MCIcon name="currency-inr" size={20} color={theme.ink} />
+          <Text style={styles.cashText}>{t("cashDefault")}</Text>
+        </View>
       </View>
       <View style={styles.toggle}>
         <Text style={styles.toggleText}>{t("digitalToggle")}</Text>
@@ -53,6 +57,7 @@ const styles = StyleSheet.create({
   active: { borderColor: theme.accent, borderWidth: 2 },
   langText: { color: theme.ink, fontSize: 17, fontWeight: "700" },
   cash: { backgroundColor: "#24402C", borderRadius: theme.radius, padding: 18 },
+  cashRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   cashText: { color: theme.ink, fontSize: 17, fontWeight: "700" },
   toggle: {
     backgroundColor: theme.card, borderRadius: theme.radius, padding: 18,

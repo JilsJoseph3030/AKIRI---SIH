@@ -1,11 +1,28 @@
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import MCIcon from "@expo/vector-icons/MaterialCommunityIcons";
 import { useTranslation } from "react-i18next";
-import { PRICES } from "@akiri/backend/domain";
+import { MATERIALS, PRICES } from "@akiri/backend/domain";
 import type { PriceEntry } from "@akiri/backend/domain";
-import { AudioButton, theme } from "../components/ui";
+import { AudioButton, SpeakDot, strip, theme } from "../components/ui";
+import type { IconName } from "../components/ui";
 import { getDb } from "../lib/db";
 import { useApp } from "../lib/store";
+import type { AppLanguage } from "../lib/i18n";
+
+const CAT_ICON: Record<string, IconName> = {
+  pcb: "chip",
+  cable: "power-plug",
+  battery: "battery-alert",
+  motor_magnet: "magnet",
+  lcd_panel: "television",
+  crt: "monitor",
+  mixed_plastics: "recycle",
+};
+
+function labelFor(category: string, lang: AppLanguage): string {
+  return MATERIALS.find((m) => m.category === category)?.label[lang] ?? category;
+}
 
 export default function Prices() {
   const { t } = useTranslation();
@@ -30,15 +47,37 @@ export default function Prices() {
       .catch(() => setPrices(PRICES));
   }, []);
 
-  const spoken = prices.map((p) => `${p.category} ${p.ratePerKg} rupees per kilo`).join(". ");
+  const spoken = prices
+    .map((p) => `${labelFor(p.category, lang)} ${p.ratePerKg} rupees per kilo`)
+    .join(". ");
 
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
+      <Text style={styles.head}>{t("todayRates")}</Text>
       <AudioButton text={spoken} lang={lang} />
       {prices.map((p) => (
-        <View key={`${p.category}-${p.location}`} style={styles.row}>
-          <Text style={styles.cat}>🔧 {p.category}</Text>
-          <Text style={styles.rate}>₹{p.ratePerKg}/kg</Text>
+        <View
+          key={`${p.category}-${p.location}`}
+          style={[styles.card, { borderLeftColor: strip[p.category] ?? theme.accent }]}
+        >
+          <View style={styles.left}>
+            <View style={styles.catRow}>
+              <MCIcon
+                name={CAT_ICON[p.category] ?? "tag"}
+                size={28}
+                color={strip[p.category] ?? theme.accent}
+              />
+              <Text style={styles.cat}>{labelFor(p.category, lang)}</Text>
+            </View>
+            <Text style={styles.rate}>
+              ₹{p.ratePerKg}
+              <Text style={styles.unit}>/kg</Text>
+            </Text>
+          </View>
+          <SpeakDot
+            text={`${labelFor(p.category, lang)}, ${p.ratePerKg} rupees per kilo`}
+            lang={lang}
+          />
         </View>
       ))}
     </ScrollView>
@@ -46,11 +85,20 @@ export default function Prices() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: 20, gap: 10 },
-  row: {
-    backgroundColor: theme.card, borderRadius: theme.radius,
-    padding: 18, flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+  wrap: { padding: 20, gap: 16 },
+  head: { color: theme.ink, fontSize: 26, fontWeight: "800" },
+  card: {
+    backgroundColor: theme.card,
+    borderRadius: theme.radiusLg,
+    borderLeftWidth: 12,
+    padding: 24,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  cat: { color: theme.ink, fontSize: 18, fontWeight: "700" },
-  rate: { color: theme.accent, fontSize: 20, fontWeight: "800" },
+  left: { gap: 6, flex: 1 },
+  catRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  cat: { color: theme.ink, fontSize: 22, fontWeight: "800", flex: 1 },
+  rate: { color: theme.ink, fontSize: 36, fontWeight: "800" },
+  unit: { color: theme.sub, fontSize: 18, fontWeight: "400" },
 });
