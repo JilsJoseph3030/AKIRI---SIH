@@ -3,7 +3,7 @@ import MCIcon from "@expo/vector-icons/MaterialCommunityIcons";
 import { useTranslation } from "react-i18next";
 import i18n, { type AppLanguage } from "../lib/i18n";
 import { useApp } from "../lib/store";
-import { theme } from "../components/ui";
+import { theme, tint } from "../components/ui";
 
 const LANGS: { code: AppLanguage; label: string }[] = [
   { code: "mr", label: "मराठी" },
@@ -37,7 +37,7 @@ export default function Settings() {
       </View>
       <View style={styles.cash}>
         <View style={styles.cashRow}>
-          <MCIcon name="currency-inr" size={20} color={theme.ink} />
+          <MCIcon name="currency-inr" size={20} color={tint.okInk} />
           <Text style={styles.cashText}>{t("cashDefault")}</Text>
         </View>
       </View>
@@ -53,14 +53,14 @@ const styles = StyleSheet.create({
   wrap: { flex: 1, padding: 20, gap: 14 },
   head: { color: theme.ink, fontSize: 20, fontWeight: "800" },
   row: { flexDirection: "row", gap: 10 },
-  lang: { backgroundColor: theme.card, borderRadius: theme.radius, padding: 16, flex: 1, alignItems: "center" },
+  lang: { backgroundColor: theme.card, borderColor: theme.line, borderWidth: 1, borderRadius: theme.radius, padding: 16, flex: 1, alignItems: "center" },
   active: { borderColor: theme.accent, borderWidth: 2 },
   langText: { color: theme.ink, fontSize: 17, fontWeight: "700" },
-  cash: { backgroundColor: "#24402C", borderRadius: theme.radius, padding: 18 },
+  cash: { backgroundColor: tint.okBg, borderColor: tint.okBd, borderWidth: 1, borderRadius: theme.radius, padding: 18 },
   cashRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  cashText: { color: theme.ink, fontSize: 17, fontWeight: "700" },
+  cashText: { color: tint.okInk, fontSize: 17, fontWeight: "700" },
   toggle: {
-    backgroundColor: theme.card, borderRadius: theme.radius, padding: 18,
+    backgroundColor: theme.card, borderColor: theme.line, borderWidth: 1, borderRadius: theme.radius, padding: 18,
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
   toggleText: { color: theme.ink, fontSize: 16, flex: 1 },

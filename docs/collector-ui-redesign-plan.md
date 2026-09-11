@@ -25,12 +25,11 @@ Backend domain, API routes, and web dashboard are untouched.
 
 ## 2. Draft → React Native translation decisions
 
-- **Keep the dark theme.** The draft is light (`#F8FAFC`, blue-600 primary);
-  the app is dark (`#101613` bg, `#1B241E` card, green `#7BD88F` accent) with
-  `StatusBar light` and 7 dark screens. Flipping to light would require
-  re-theming every screen plus `_layout.tsx` — out of scope. We port the
-  draft's *layout, scale, and accessibility* (touch targets ≥ 64px, section
-  type ≥ 22px, radius 28 cards, generous gaps), not its palette.
+- **Theme:** light, per the draft (`#F8FAFC` bg, white cards with `#E2E8F0`
+  borders, ink `#0F172A`, primary blue `#2563EB`). The draft's dark slate
+  earnings card is kept as a contrast block. Category strips follow the
+  draft palette (pcb purple, cable blue, battery red, motor amber, lcd sky,
+  crt slate, plastics emerald).
 - **Category colors** become dark-mode strip/tint tokens
   (`pcb` purple, `cable` blue, `battery` red, `motor_magnet` amber,
   `lcd_panel` teal, `crt` slate, `mixed_plastics` green) in `ui.tsx`.

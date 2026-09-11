@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { MATERIALS, PRICES } from "@akiri/backend/domain";
 import i18n, { type AppLanguage } from "../lib/i18n";
 import { useApp } from "../lib/store";
-import { AudioButton, SectionTitle, SpeakDot, strip, theme } from "../components/ui";
+import { AudioButton, SectionTitle, SpeakDot, strip, theme, tint } from "../components/ui";
 import type { IconName } from "../components/ui";
 
 const LANGS: { code: AppLanguage; label: string }[] = [
@@ -51,7 +51,7 @@ export default function Home() {
         <View style={styles.brandRow}>
           <View style={styles.brandLeft}>
             <View style={styles.badge}>
-              <MCIcon name="recycle" size={28} color="#101613" />
+              <MCIcon name="recycle" size={28} color={theme.accentInk} />
             </View>
             <Text style={styles.brand}>Akiri</Text>
           </View>
@@ -60,8 +60,7 @@ export default function Home() {
             <Text style={styles.net}>{online ? t("online") : t("offline")}</Text>
             {pending > 0 && (
               <View style={styles.netRow}>
-                <MCIcon name="clock-outline" size={16} color={theme.warn} />
-                <Text style={styles.net}>{pending}</Text>
+                <MCIcon name="clock-outline" size={16} color={theme.warn} />                <Text style={styles.net}>{pending}</Text>
               </View>
             )}
           </View>
@@ -93,21 +92,21 @@ export default function Home() {
             <View style={styles.steps}>
               <View style={styles.step}>
                 <View style={styles.stepDot}>
-                  <MCIcon name="camera" size={30} color="#F2F5F0" />
+                  <MCIcon name="camera" size={30} color={theme.accentInk} />
                 </View>
                 <Text style={styles.stepText}>{t("stepPhoto")}</Text>
               </View>
               <MCIcon name="arrow-right" size={22} color="rgba(255,255,255,0.5)" style={styles.arrow} />
               <View style={styles.step}>
                 <View style={styles.stepDot}>
-                  <MCIcon name="scale" size={30} color="#F2F5F0" />
+                  <MCIcon name="scale" size={30} color={theme.accentInk} />
                 </View>
                 <Text style={styles.stepText}>{t("stepWeight")}</Text>
               </View>
               <MCIcon name="arrow-right" size={22} color="rgba(255,255,255,0.5)" style={styles.arrow} />
               <View style={styles.step}>
                 <View style={styles.stepDot}>
-                  <MCIcon name="currency-inr" size={30} color="#F2F5F0" />
+                  <MCIcon name="currency-inr" size={30} color={theme.accentInk} />
                 </View>
                 <Text style={styles.stepText}>{t("stepCash")}</Text>
               </View>
@@ -178,9 +177,9 @@ export default function Home() {
                   <MCIcon
                     name={first.synced ? "check" : "clock-outline"}
                     size={14}
-                    color={first.synced ? theme.accent : theme.warn}
+                    color={first.synced ? tint.okInk : tint.warnInk}
                   />
-                  <Text style={[styles.chipText, { color: first.synced ? theme.accent : theme.warn }]}>
+                  <Text style={[styles.chipText, { color: first.synced ? tint.okInk : tint.warnInk }]}>
                     {first.synced ? t("ready") : t("pending")}
                   </Text>
                 </View>
@@ -216,8 +215,8 @@ export default function Home() {
         <SectionTitle title={t("safetyHeed")} />
         <Link href="/safety" asChild>
           <Pressable style={styles.safe}>
-            <MCIcon name="fire" size={44} color={theme.danger} />
-            <Text style={styles.safeText}>{t("noBurn")}</Text>
+            <MCIcon name="fire" size={44} color={tint.dangerInk} />
+            <Text style={[styles.safeText, { color: tint.dangerInk }]}>{t("noBurn")}</Text>
             <MCIcon name="chevron-right" size={24} color={theme.sub} />
           </Pressable>
         </Link>
@@ -229,7 +228,7 @@ export default function Home() {
         <TabItem href="/ledger" icon="package-variant" label={t("ledger")} />
         <Link href="/snap" asChild>
           <Pressable accessibilityRole="button" accessibilityLabel={t("snap")} style={styles.fab}>
-            <MCIcon name="camera" size={34} color="#101613" />
+            <MCIcon name="camera" size={34} color={theme.accentInk} />
           </Pressable>
         </Link>
         <TabItem href="/earnings" icon="wallet" label={t("earnings")} />
@@ -277,13 +276,13 @@ const styles = StyleSheet.create({
   netRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   net: { color: theme.sub, fontSize: 14 },
-  seg: { flexDirection: "row", gap: 8, backgroundColor: theme.card, borderRadius: 20, padding: 6 },
+  seg: { flexDirection: "row", gap: 8, backgroundColor: "#E2E8F0", borderRadius: 20, padding: 6 },
   segBtn: { flex: 1, borderRadius: 14, paddingVertical: 14, alignItems: "center" },
-  segActive: { backgroundColor: "#24402C" },
+  segActive: { backgroundColor: theme.card },
   segText: { color: theme.sub, fontSize: 18, fontWeight: "700" },
   segTextActive: { color: theme.ink },
-  how: { backgroundColor: "#2C5B38", borderRadius: theme.radiusLg, padding: 24, gap: 18 },
-  howTitle: { color: "#F2F5F0", fontSize: 24, fontWeight: "800" },
+  how: { backgroundColor: theme.accent, borderRadius: theme.radiusLg, padding: 24, gap: 18 },
+  howTitle: { color: theme.accentInk, fontSize: 24, fontWeight: "800" },
   steps: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   step: { flex: 1, alignItems: "center", gap: 8 },
   stepDot: {
@@ -294,10 +293,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  stepText: { color: "#F2F5F0", fontSize: 14, fontWeight: "700", textAlign: "center" },
+  stepText: { color: theme.accentInk, fontSize: 14, fontWeight: "700", textAlign: "center" },
   arrow: { marginTop: 18 },
   rate: {
     backgroundColor: theme.card,
+    borderColor: theme.line,
+    borderWidth: 1,
     borderRadius: theme.radiusLg,
     borderLeftWidth: 12,
     padding: 24,
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
   rateUnit: { color: theme.sub, fontSize: 18, fontWeight: "400" },
   more: { alignSelf: "flex-start", paddingVertical: 6 },
   moreText: { color: theme.accent, fontSize: 17, fontWeight: "700" },
-  lot: { backgroundColor: theme.card, borderRadius: theme.radiusLg, padding: 16, gap: 16 },
+  lot: { backgroundColor: theme.card, borderColor: theme.line, borderWidth: 1, borderRadius: theme.radiusLg, padding: 16, gap: 16 },
   lotRow: { flexDirection: "row", gap: 16, alignItems: "center" },
   lotInfo: { flex: 1, gap: 4 },
   lotCat: { color: theme.ink, fontSize: 22, fontWeight: "800" },
@@ -326,20 +327,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 8,
   },
-  chipOk: { backgroundColor: "#24402C" },
-  chipDue: { backgroundColor: "#3A2E14" },
+  chipOk: { backgroundColor: tint.okBg },
+  chipDue: { backgroundColor: tint.warnBg },
   chipText: { fontSize: 14, fontWeight: "700" },
   cta: { backgroundColor: theme.accent, borderRadius: 18, paddingVertical: 20, alignItems: "center" },
-  ctaText: { color: "#101613", fontSize: 22, fontWeight: "800" },
+  ctaText: { color: theme.accentInk, fontSize: 22, fontWeight: "800" },
   empty: { color: theme.sub, fontSize: 17 },
-  earn: { backgroundColor: "#0C100D", borderRadius: 32, padding: 32, gap: 6, borderWidth: 1, borderColor: "#223026" },
-  earnCap: { color: theme.sub, fontSize: 18, fontWeight: "700" },
-  earnBig: { color: theme.accent, fontSize: 56, fontWeight: "800" },
+  earn: { backgroundColor: "#0F172A", borderRadius: 32, padding: 32, gap: 6 },
+  earnCap: { color: "#94A3B8", fontSize: 18, fontWeight: "700" },
+  earnBig: { color: "#FFFFFF", fontSize: 56, fontWeight: "800" },
   earnSplit: { flexDirection: "row", justifyContent: "space-between", marginTop: 12 },
-  earnSub: { color: theme.ink, fontSize: 18, fontWeight: "700" },
+  earnSub: { color: "#E2E8F0", fontSize: 18, fontWeight: "700" },
   safe: {
-    backgroundColor: "#2A1A14",
-    borderColor: "#5A2E1E",
+    backgroundColor: tint.dangerBg,
+    borderColor: tint.dangerBd,
     borderWidth: 2,
     borderRadius: theme.radiusLg,
     padding: 24,
@@ -354,6 +355,8 @@ const styles = StyleSheet.create({
     right: 16,
     bottom: 24,
     backgroundColor: theme.card,
+    borderColor: theme.line,
+    borderWidth: 1,
     borderRadius: 32,
     padding: 10,
     flexDirection: "row",
