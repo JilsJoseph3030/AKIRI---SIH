@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Akiri — Recycler Dashboard",
@@ -12,16 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body
-        style={{
-          margin: 0,
-          background: "#0E120F",
-          color: "#F2F5F0",
-          fontFamily: "system-ui, sans-serif",
-        }}
-      >
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
