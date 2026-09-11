@@ -6,9 +6,9 @@ import {
 import type { MaterialCategory } from "../domain/schemas";
 import { detectCategory } from "../domain/voice";
 import { lookupPart } from "../domain/parts";
-
 /** Verified: Responses API takes input_image blocks; Zen uses the same path. */
-export const VISION_MODEL = "muse-spark-1.3-contributor-free";
+export const VISION_MODEL =
+  process.env.OPENCODE_ZEN_VISION_MODEL ?? "muse-spark-1.3-contributor-free";
 export const VISION_ENDPOINT = "https://opencode.ai/zen/v1/responses";
 
 export const VISION_SYSTEM_PROMPT = `You identify e-waste and scrap items from a photo for Indian collectors. Look carefully: device type, brand/model markings, screen type (glass tube vs flat), green circuit boards, batteries, motors, cables, plastics.
