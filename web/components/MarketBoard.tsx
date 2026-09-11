@@ -101,7 +101,7 @@ export default function MarketBoard() {
   const sorted = [...rows].sort((a, b) => b.spotInrPerKg - a.spotInrPerKg);
 
   return (
-    <section className="market" aria-label="Market price board">
+    <section className="market" id="market" aria-label="Market price board">
       <div className="market-head">
         <div>
           <p className="eyebrow">Indicative rates</p>

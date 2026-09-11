@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Info, MessageCircle, Send, Sprout, X } from "lucide-react";
 
 interface Msg {
@@ -21,6 +21,13 @@ export default function AssistantWidget() {
   const [input, setInput] = useState("");
   const [log, setLog] = useState<Msg[]>([]);
   const [busy, setBusy] = useState(false);
+
+  // Lets dashboard action cards open the widget without prop drilling.
+  useEffect(() => {
+    const openWidget = () => setOpen(true);
+    window.addEventListener("akiri:open-assistant", openWidget);
+    return () => window.removeEventListener("akiri:open-assistant", openWidget);
+  }, []);
 
   async function ask() {
     const question = input.trim();
