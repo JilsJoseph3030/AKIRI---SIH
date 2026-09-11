@@ -61,16 +61,22 @@ const resources = {
 
 export type AppLanguage = keyof typeof resources;
 
-export async function initI18n(): Promise<void> {
-  const device = Localization.getLocales()[0]?.languageCode ?? "en";
-  const lng: AppLanguage =
-    device === "mr" ? "mr" : device === "hi" ? "hi" : "en";
-  await i18n.use(initReactI18next).init({
-    resources,
-    lng,
-    fallbackLng: "en",
-    interpolation: { escapeValue: false },
-  });
+const device = Localization.getLocales()[0]?.languageCode ?? "en";
+const initialLng: AppLanguage =
+  device === "mr" ? "mr" : device === "hi" ? "hi" : "en";
+
+// Bind the instance synchronously at import time (proven: setI18n runs
+// inside .init(), not after) so no first render can hit NO_I18NEXT_INSTANCE.
+const ready = i18n.use(initReactI18next).init({
+  resources,
+  lng: initialLng,
+  fallbackLng: "en",
+  interpolation: { escapeValue: false },
+});
+
+/** Resolves once inline resources are loaded — await in boot gating. */
+export function initI18n(): Promise<void> {
+  return ready.then(() => undefined);
 }
 
 export const ttsLocale: Record<AppLanguage, string> = {
