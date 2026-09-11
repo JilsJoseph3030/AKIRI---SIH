@@ -19,6 +19,7 @@ const resources = {
       myLots: "My lots", viewAll: "View all", findRecycler: "Find recycler",
       todayEarn: "Today's earnings", safetyHeed: "Safety — take care",
       ready: "Ready", emptyLots: "No lots yet — snap your first photo",
+      retake: "Retake", checkItem: "Check the item", saveLot: "Save lot",
     },
   },
   hi: {
@@ -37,6 +38,7 @@ const resources = {
       myLots: "मेरा सामान", viewAll: "सब देखें", findRecycler: "ग्राहक खोजें",
       todayEarn: "आज की कमाई", safetyHeed: "सुरक्षा - ध्यान दें",
       ready: "तैयार है", emptyLots: "अभी कोई सामान नहीं — पहली फोटो लें",
+      retake: "दोबारा लें", checkItem: "सामान जांचें", saveLot: "लाट सहेजें",
     },
   },
   mr: {
@@ -55,6 +57,7 @@ const resources = {
       myLots: "माझे साहित्य", viewAll: "सर्व पहा", findRecycler: "ग्राहक शोधा",
       todayEarn: "आजची कमाई", safetyHeed: "सुरक्षा - लक्ष द्या",
       ready: "तयार आहे", emptyLots: "अद्याप सामान नाही — पहिला फोटो घ्या",
+      retake: "पुन्हा घ्या", checkItem: "साहित्य तपासा", saveLot: "लॉट जतन करा",
     },
   },
 } as const;
