@@ -43,41 +43,49 @@ const PROMPTS: Record<string, Record<string, string>> = {
     hi: "Namaste! Bhasha chunein. Hindi ke liye Hindi boliye.",
     mr: "Namaskar! Bhasha nivda. Marathi sathi Marathi bola.",
     en: "Hello! Please say Hindi, Marathi, or English to choose your language.",
+    ml: "Namaskaram! Malayalam samsarikkuvan Malayalam parayoo.",
   },
   intent: {
     hi: "Aap kya karna chahte hain? Bhaav, pickup, ya suraksha jaankari?",
     mr: "Tumhala kay have aahe? Bhaav, pickup, ki suraksha mahiti?",
     en: "What would you like to do? Hear prices, request a pickup, or safety guidance?",
+    ml: "Ningalkku enthu venam? Vila, pickup, suraksha?",
   },
   priceSlot: {
     hi: "Kaun se maal ka bhaav chahiye? Battery, taar, board, ya plastic?",
     mr: "Kontya malacha bhaav havay? Battery, taar, board, ki plastic?",
     en: "Which material's price? Battery, cable, board, or plastic?",
+    ml: "Etha saadhanathinte vila venam? Battery, kambi, board, plastic?",
   },
   pickupSlot: {
     hi: "Aapke paas kya hai? Maal aur andazan wazan bataiye.",
     mr: "Tumchyakade kay aahe? Maal ani andaje vajan sanga.",
     en: "What do you have? Tell me the material and rough weight.",
+    ml: "Ningalude kayyil enthu undu? Saadhanavum thookkavum parayoo.",
   },
   safetySlot: {
     hi: "Kis cheez ki suraksha jaankari chahiye? Battery ya screen?",
     mr: "Kontya goshtichi suraksha mahiti havi? Battery ki screen?",
     en: "Which hazard? Batteries or screens?",
+    ml: "Ethanekkurichulla suraksha vivaram venam? Battery yo screen yo?",
   },
   human: {
     hi: "Madad ke liye hamare sahayak number par sampark kariye. Dhanyavaad!",
     mr: "Madatisathi amchya sahayyak kramankavar sampark kara. Dhanyavaad!",
     en: "Please contact our support number for further help. Thank you!",
+    ml: "Sahayathinu support nambaril vilikku. Nanni!",
   },
   confirmed: {
     hi: "Darj ho gaya. Recycler ko soochit kiya jayega. Dhanyavaad!",
     mr: "Nond jhali. Recycler la kalavle jail. Dhanyavaad!",
     en: "Registered. A nearby authorized recycler will be notified. Thank you!",
+    ml: "Rajistar cheythu. Recyclerine ariyikkum. Nanni!",
   },
   aborted: {
     hi: "Theek hai, kuchh darj nahin hua. Phir se bataiye.",
     mr: "Theek aahe, kahi nond jhali nahi. Punha sanga.",
     en: "Okay, nothing was recorded. Please tell me again.",
+    ml: "Kuzhappamilla, onnum rajistar cheythilla. Veendum parayoo.",
   },
 };
 
@@ -98,15 +106,18 @@ const LANG_WORDS: Record<VoiceLang, string[]> = {
 };
 
 const INTENT_WORDS: Record<VoiceIntent, string[]> = {
-  price: ["price", "bhaav", "bhav", "भाव", "rate", "kimat", "ves", "dam"],
-  pickup: ["pickup", "collect", "lene", "uthao", "उठा", "bechna", "vikayche", "sell", "gadi", "pick"],
-  safety: ["safety", "suraksha", "सुरक्षा", "khatra", "savdhani", "burn", "jala", "vidyut"],
+  price: ["price", "bhaav", "bhav", "भाव", "rate", "kimat", "ves", "dam", "vila", "വില"],
+  pickup: ["pickup", "collect", "lene", "uthao", "उठा", "bechna", "vikayche", "sell", "gadi", "pick", "edukku", "എടുക്ക്"],
+  safety: ["safety", "suraksha", "सुरक्षा", "khatra", "savdhani", "burn", "jala", "vidyut", "സുരക്ഷ"],
   human: ["human", "aadmi", "madad", "help", "agent", "number", "contact", "bolna"],
 };
 
+const YES_WORDS = ["yes", "haan", "haanji", "ho", "हो", "हां", "barobar", "sahi", "correct", "ok", "athe", "sheri", "ശരി"];
+const NO_WORDS = ["no", "nahi", "नहीं", "नाही", "naka", "wrong", "galat", "chuk", "alla", "veda", "അല്ല"];
+
 const CATEGORY_WORDS: Record<MaterialCategory, string[]> = {
-  battery: ["battery", "बैटरी", "बॅटरी", "cell", "inverter", "सेल"],
-  cable: ["cable", "wire", "taar", "तार", "copper", "तांब"],
+  battery: ["battery", "बैटरी", "बॅटरी", "cell", "inverter", "सेल", "ബാറ്ററി"],
+  cable: ["cable", "wire", "taar", "तार", "copper", "तांब", "കമ്പി", "വയർ"],
   pcb: ["board", "pcb", "circuit", "motherboard", "बोर्ड", "chip"],
   crt: ["crt", "tv", "टीवी", "monitor", "maanitar"],
   lcd_panel: ["lcd", "led", "screen", "स्क्रीन", "display", "panel"],
@@ -114,8 +125,6 @@ const CATEGORY_WORDS: Record<MaterialCategory, string[]> = {
   mixed_plastics: ["plastic", "प्लास्टिक", "cabinet", "dabba", "bottle"],
 };
 
-const YES_WORDS = ["yes", "haan", "haanji", "ho", "हो", "हां", "barobar", "sahi", "correct", "ok"];
-const NO_WORDS = ["no", "nahi", "नहीं", "नाही", "naka", "wrong", "galat", "chuk"];
 
 function includesAny(text: string, words: string[]): boolean {
   return words.some((w) => text.includes(w));
@@ -309,21 +318,22 @@ export async function advanceVoice(
 
   return { reply: prompt("human", lang), done: true };
 }
-
-/** Trilingual scripts with Hindi fallback for the other 10 languages. */
-function phrasing(map: { hi: string; mr: string; en: string }, lang: VoiceLang): string {
-  return map[lang as "hi" | "mr" | "en"] ?? map.hi;
+/** Scripted hi/mr/en/ml; other languages fall back to Hindi. */
+function phrasing(map: { hi: string; mr: string; en: string; ml: string }, lang: VoiceLang): string {
+  if (lang === "mr" || lang === "en" || lang === "ml") return map[lang];
+  return map.hi;
 }
 
 function confirmPickup(cat: MaterialCategory, weightKg: number | null, lang: VoiceLang): string {
   const what =
     weightKg
-      ? phrasing({ hi: `${cat}, ${weightKg} kilo`, mr: `${cat}, ${weightKg} kilo`, en: `${cat}, ${weightKg} kilos` }, lang)
+      ? phrasing({ hi: `${cat}, ${weightKg} kilo`, mr: `${cat}, ${weightKg} kilo`, en: `${cat}, ${weightKg} kilos`, ml: `${cat}, ${weightKg} kilo` }, lang)
       : cat;
   const ask = phrasing({
     hi: "Samajh gaya. Kya yeh sahi hai? Haan ya na boliye.",
     mr: "Samajle. Hey barobar aahe ka? Ho ki nahi sanga.",
     en: "Understood. Is that right? Say yes or no.",
+    ml: "Manassilayi. Sheriyano? Yes o no o parayoo.",
   }, lang);
   return `${what}. ${ask}`;
 }
@@ -333,6 +343,7 @@ function confirmProposal(cat: MaterialCategory, lang: VoiceLang): string {
     hi: `Lagta hai yeh ${cat} hai — kya yeh sahi hai?`,
     mr: `Vatate he ${cat} aahe — hey barobar aahe ka?`,
     en: `It sounds like a ${cat} — is that right?`,
+    ml: `Ithu ${cat} aanennu thonnunnu — sheriyano?`,
   }, lang);
 }
 
@@ -341,6 +352,7 @@ function confirmGeneric(lang: VoiceLang): string {
     hi: "Samajh nahin aaya. Mixed maal ke roop mein darj karoon? Haan ya na.",
     mr: "Samajle nahi. Mixed maal mhanun nond karu ka? Ho ki nahi.",
     en: "I couldn't identify it. Log as mixed material for manual review? Yes or no.",
+    ml: "Manassilayilla. Mixed aayi rajistar cheyyatte? Yes o no o.",
   }, lang);
 }
 

@@ -282,3 +282,43 @@ describe("muse spark guide", () => {
     expect(text).toContain("market ref");
   });
 });
+
+describe("malayalam support and full-listen turns", () => {
+  it("walks a Malayalam price flow with scripted replies", async () => {
+    const s = newVoiceSession("CA-ml");
+    let t = await advanceVoice(s, "malayalam samsarikkamo", "voice:abc", { exaLookup: noopExa });
+    expect(s.lang).toBe("ml");
+    expect(t.reply).toContain("Ningalkku enthu venam");
+    t = await advanceVoice(s, "vila ariyano", "voice:abc", { exaLookup: noopExa });
+    expect(t.done).toBe(false);
+    t = await advanceVoice(s, "battery", "voice:abc", { exaLookup: noopExa });
+    expect(t.done).toBe(true);
+    expect(t.reply).toContain("PRICE:battery");
+  });
+
+  it("emits full-listen gather attributes and ml-IN wavenet voice", async () => {
+    const { gatherSay, sayHangup, sayLang } = await import("../src/voice/twiml");
+    const xml = gatherSay("Ningalkku enthu venam?", "https://x.test/voice/turn", sayLang("ml"));
+    expect(sayLang("ml")).toBe("ml-IN");
+    expect(xml).toContain('language="ml-IN"');
+    expect(xml).toContain('voice="Google.ml-IN-Wavenet-A"');
+    expect(xml).toContain('bargeIn="false"');
+    expect(xml).toContain('speechTimeout="3"');
+    expect(xml).toContain('timeout="10"');
+    expect(sayHangup("Nanni!", sayLang("ml"))).toContain("ml-IN");
+    expect(sayLang("ta")).toBe("hi-IN");
+  });
+
+  it("confirms back in Malayalam and honors athe/alla", async () => {
+    const s = newVoiceSession("CA-ml2");
+    await advanceVoice(s, "malayalam", "voice:abc", { exaLookup: noopExa });
+    await advanceVoice(s, "pickup vende", "voice:abc", { exaLookup: noopExa });
+    const t = await advanceVoice(s, "battery 2 kilo", "voice:abc", { exaLookup: noopExa });
+    expect(t.done).toBe(false);
+    expect(isYes("athe sheriyanu")).toBe(true);
+    expect(isNo("alla veda")).toBe(true);
+    const done = await advanceVoice(s, "athe", "voice:abc", { exaLookup: noopExa });
+    expect(done.done).toBe(true);
+    expect(done.write?.slots.category).toBe("battery");
+  });
+});

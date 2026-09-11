@@ -118,7 +118,7 @@ voice.post("/voice/incoming", (c) => {
   touch(callSid, { session: newVoiceSession(callSid), salt, from });
   const base = process.env.VOICE_PUBLIC_BASE_URL ?? "";
   const action = `${base}/voice/turn?CallSid=${encodeURIComponent(callSid)}`;
-  return twimlXml(gatherSay("Namaste! Hindi, Marathi, English?", action, "hi-IN"));
+  return twimlXml(gatherSay("Namaste! Hindi, Marathi, English, Malayalam?", action, "hi-IN"));
 });
 
 voice.post("/voice/turn", async (c) => {
