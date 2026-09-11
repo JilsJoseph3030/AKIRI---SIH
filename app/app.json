@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Akiri",
+    "slug": "akiri",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "akiri",
+    "plugins": ["expo-router", "expo-camera", "expo-localization"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
