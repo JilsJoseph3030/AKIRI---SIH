@@ -52,6 +52,96 @@ export async function postLot(input: {
   return { ledgerRef: tx.ledgerRef ?? "" };
 }
 
+export interface ScanResult {
+  category: string;
+  partKey: string | null;
+  partLabel: string | null;
+  modelHint: string | null;
+  confidence: number;
+  priceText: string;
+  estimatedValueInr: number | null;
+  ledgerRef: string | null;
+  source: string;
+  nearby: { id: string; area: string; lat: number; lng: number; distanceKm: number; offeredRate: number }[];
+}
+
+interface VisionPayload {
+  category: unknown;
+  partKey: unknown;
+  modelHint: unknown;
+  confidence: unknown;
+  priceText: unknown;
+  estimatedValueInr: unknown;
+  source: unknown;
+}
+
+function isVisionPayload(value: unknown): value is VisionPayload {
+  return !!value && typeof value === "object" && "category" in value;
+}
+
+function strField(obj: object, key: string): string | null {
+  if (!(key in obj)) return null;
+  const v = (obj as Record<string, unknown>)[key];
+  return typeof v === "string" ? v : null;
+}
+
+function numField(obj: object, key: string): number | null {
+  if (!(key in obj)) return null;
+  const v = (obj as Record<string, unknown>)[key];
+  return typeof v === "number" ? v : null;
+}
+
+function isScanResult(raw: unknown): raw is {
+  lot: { category: string; estimatedValueInr: number; ledgerRef: string | null };
+  vision: VisionPayload | null;
+  nearby: ScanResult["nearby"];
+} {
+  if (!raw || typeof raw !== "object") return false;
+  if (!("lot" in raw) || !("nearby" in raw) || !("vision" in raw)) return false;
+  const lot = (raw as { lot: unknown }).lot;
+  if (!lot || typeof lot !== "object" || !("category" in lot)) return false;
+  const vision = (raw as { vision: unknown }).vision;
+  if (vision !== null && !isVisionPayload(vision)) return false;
+  return Array.isArray((raw as { nearby: unknown }).nearby);
+}
+
+/** Vision scan: photo → model + Exa identification + researched price + nearby centers. */
+export async function identifyScan(input: {
+  id: string;
+  collectorId: string;
+  imageBase64: string;
+  weightKg: number;
+  hint?: string;
+  lat?: number;
+  lng?: number;
+}): Promise<ScanResult | null> {
+  try {
+    const res = await fetch(`${BASE}/vision/identify`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) return null;
+    const raw: unknown = await res.json();
+    if (!isScanResult(raw)) return null;
+    const v = raw.vision;
+    return {
+      category: v ? (strField(v, "category") ?? String(raw.lot.category)) : String(raw.lot.category),
+      partKey: v ? strField(v, "partKey") : null,
+      partLabel: null,
+      modelHint: v ? strField(v, "modelHint") : null,
+      confidence: v ? (numField(v, "confidence") ?? 0) : 0,
+      priceText: v ? (strField(v, "priceText") ?? "") : "",
+      estimatedValueInr: typeof raw.lot.estimatedValueInr === "number" ? raw.lot.estimatedValueInr : null,
+      ledgerRef: typeof raw.lot.ledgerRef === "string" ? raw.lot.ledgerRef : null,
+      source: v ? (strField(v, "source") ?? "model") : "mock",
+      nearby: raw.nearby,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Flush unsynced lots when connectivity returns. */
 export function watchConnectivity(onChange: (online: boolean) => void): () => void {
   return NetInfo.addEventListener((state) => {

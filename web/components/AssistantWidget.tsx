@@ -1,11 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { Info, MessageCircle, Send, Sprout, X } from "lucide-react";
 
 interface Msg {
   role: "user" | "assistant";
   text: string;
+  failed?: boolean;
 }
+
+const SUGGESTIONS = [
+  "How do I confirm a handover?",
+  "What is EPR?",
+  "How is scrap priced?",
+];
 
 export default function AssistantWidget() {
   const [open, setOpen] = useState(false);
@@ -31,7 +39,7 @@ export default function AssistantWidget() {
     } catch {
       setLog((l) => [
         ...l,
-        { role: "assistant", text: "Request failed — try again." },
+        { role: "assistant", text: "Request failed — check your connection and try again.", failed: true },
       ]);
     } finally {
       setBusy(false);
@@ -42,98 +50,100 @@ export default function AssistantWidget() {
     return (
       <button
         onClick={() => setOpen(true)}
-        style={fab}
+        className="fab"
         aria-label="Open Akiri assistant"
       >
-        💬
+        <MessageCircle size={26} aria-hidden="true" />
       </button>
     );
   }
 
   return (
-    <div style={panel}>
-      <div style={head}>
-        <strong>Akiri Sahayak</strong>
-        <span>
-          <button onClick={() => setAbout((v) => !v)} style={mini} aria-label="About">
-            ⓘ
-          </button>{" "}
-          <button onClick={() => setOpen(false)} style={mini} aria-label="Close">
-            ✕
+    <div className="chat" role="dialog" aria-label="Akiri Sahayak assistant">
+      <div className="chat-head">
+        <span className="chat-title">
+          <span className="chat-status" aria-hidden="true" />
+          Akiri Sahayak
+        </span>
+        <span className="chat-actions">
+          <button
+            onClick={() => setAbout((v) => !v)}
+            className="chat-mini"
+            aria-label="About this assistant"
+            aria-expanded={about}
+          >
+            <Info size={16} aria-hidden="true" />
+          </button>
+          <button
+            onClick={() => setOpen(false)}
+            className="chat-mini"
+            aria-label="Close assistant"
+          >
+            <X size={16} aria-hidden="true" />
           </button>
         </span>
       </div>
       {about && (
-        <p style={aboutStyle}>
+        <p className="chat-about">
           Answers come from Akiri help notes via Muse Spark 1.3
           (Contributor free tier on OpenCode Zen). Free-tier prompts may
           be used to train future Meta models — never share collector
           personal details or financial information here.
         </p>
       )}
-      <div style={thread}>
-        {log.map((m, i) => (
-          <p key={i} style={m.role === "user" ? mine : theirs}>
-            {m.text}
-          </p>
-        ))}
+      <div className="chat-thread" aria-live="polite">
+        {log.length === 0 ? (
+          <div className="chat-empty">
+            <span className="big" aria-hidden="true">
+              <Sprout size={32} />
+            </span>
+            <strong>Namaste! I’m Sahayak.</strong>
+            Ask about handovers, pricing, or EPR — or try one below.
+            <div className="chips">
+              {SUGGESTIONS.map((s) => (
+                <button key={s} className="chip" onClick={() => setInput(s)}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          log.map((m, i) => (
+            <p
+              key={i}
+              className={
+                m.role === "user"
+                  ? "msg msg-user"
+                  : m.failed
+                    ? "msg msg-error"
+                    : "msg msg-assistant"
+              }
+            >
+              {m.text}
+            </p>
+          ))
+        )}
+        {busy && <p className="msg msg-assistant">Thinking…</p>}
       </div>
-      <div style={row}>
+      <div className="chat-row">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && ask()}
           placeholder="Ask about handovers, pricing, EPR…"
-          style={box}
+          className="input"
           aria-label="Ask the assistant"
         />
-        <button onClick={ask} style={send} disabled={busy}>
-          ↑
+        <button
+          onClick={ask}
+          className="chat-send"
+          disabled={busy || !input.trim()}
+          aria-label="Send question"
+        >
+          <Send size={15} aria-hidden="true" />
+          <span aria-hidden="true">Send</span>
         </button>
       </div>
     </div>
   );
 }
-
-const fab: React.CSSProperties = {
-  position: "fixed", right: 20, bottom: 20, width: 56, height: 56,
-  borderRadius: 999, border: "none", fontSize: 26, cursor: "pointer",
-  background: "#7BD88F",
-};
-const panel: React.CSSProperties = {
-  position: "fixed", right: 20, bottom: 20, width: 340, maxHeight: 480,
-  display: "flex", flexDirection: "column", background: "#1B241E",
-  borderRadius: 14, overflow: "hidden", border: "1px solid #2C3A2F",
-};
-const head: React.CSSProperties = {
-  display: "flex", justifyContent: "space-between", alignItems: "center",
-  padding: "10px 14px", background: "#24402C",
-};
-const mini: React.CSSProperties = {
-  background: "none", border: "none", color: "#F2F5F0",
-  fontSize: 16, cursor: "pointer",
-};
-const aboutStyle: React.CSSProperties = {
-  fontSize: 12, color: "#A9B8AC", padding: "8px 14px", margin: 0,
-};
-const thread: React.CSSProperties = {
-  flex: 1, overflowY: "auto", padding: 12, display: "flex",
-  flexDirection: "column", gap: 8, minHeight: 200,
-};
-const mine: React.CSSProperties = {
-  alignSelf: "flex-end", background: "#24402C", padding: "8px 12px",
-  borderRadius: 12, margin: 0, maxWidth: "85%",
-};
-const theirs: React.CSSProperties = {
-  alignSelf: "flex-start", background: "#101613", padding: "8px 12px",
-  borderRadius: 12, margin: 0, maxWidth: "85%",
-};
-const row: React.CSSProperties = { display: "flex", gap: 8, padding: 10 };
-const box: React.CSSProperties = {
-  flex: 1, background: "#101613", color: "#F2F5F0",
-  border: "1px solid #2C3A2F", borderRadius: 10, padding: 10,
-};
-const send: React.CSSProperties = {
-  background: "#7BD88F", border: "none", borderRadius: 10,
-  width: 42, fontSize: 18, cursor: "pointer",
-};

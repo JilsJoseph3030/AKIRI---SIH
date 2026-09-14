@@ -1,7 +1,10 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { createHash } from "node:crypto";
 import {
+  MARKET_AS_OF,
+  MARKET_SNAPSHOT,
   MATERIAL_CATEGORIES,
   confirmHandover,
   createEntry,
@@ -11,6 +14,8 @@ import {
 } from "./domain/index";
 import type { MaterialCategory, Transaction } from "./domain/schemas";
 import { chains, exportRows, lots, PRICES, RECYCLERS } from "./store";
+import { voice } from "./voice/routes";
+import { VisionError, identifyImage } from "./vision/identify";
 
 function isCategory(value: unknown): value is MaterialCategory {
   return (
@@ -36,9 +41,27 @@ interface ConfirmIntake {
   recyclerId: unknown;
 }
 
+interface VisionIntake {
+  id: unknown;
+  collectorId: unknown;
+  imageBase64: unknown;
+  mimeType?: unknown;
+  weightKg?: unknown;
+  hint?: unknown;
+  lat?: unknown;
+  lng?: unknown;
+}
+
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
 export const app = new Hono();
+
+// The dashboard and phone app call the API cross-origin (different
+// port/host, or a public tunnel like ngrok) — allow it. No cookies or
+// credentials are used, so a wildcard origin is sufficient for this demo.
+app.use("*", cors());
+app.route("/", voice);
+
 
 app.get("/health", (c) => c.json({ ok: true }));
 
@@ -114,6 +137,81 @@ app.post("/lots", async (c) => {
   return c.json(tx, 201);
 });
 
+/** Vision scan: photo → model + Exa identification → lot + chain + nearby centers. */
+app.post("/vision/identify", async (c) => {
+  const body = (await c.req.json()) as VisionIntake;
+  if (typeof body.id !== "string" || body.id.length === 0) {
+    return c.json({ error: "id required" }, 400);
+  }
+  if (typeof body.collectorId !== "string" || body.collectorId.length === 0) {
+    return c.json({ error: "collectorId required" }, 400);
+  }
+  if (typeof body.imageBase64 !== "string" || body.imageBase64.length < 100) {
+    return c.json({ error: "imageBase64 required" }, 400);
+  }
+  if (body.imageBase64.length > 3_000_000) {
+    return c.json({ error: "image too large (3MB cap)" }, 413);
+  }
+  const existing = lots.get(body.id);
+  if (existing) return c.json({ lot: existing, vision: null, nearby: [] });
+  const weightKg =
+    typeof body.weightKg === "number" && body.weightKg > 0 ? body.weightKg : null;
+  let vision;
+  try {
+    vision = await identifyImage(
+      process.env.OPENCODE_ZEN_API_KEY ?? "",
+      process.env.EXA_API_KEY ?? "",
+      {
+        imageBase64: body.imageBase64,
+        mimeType: typeof body.mimeType === "string" ? body.mimeType : "image/jpeg",
+        weightKg: weightKg ?? undefined,
+      hint: typeof body.hint === "string" ? body.hint : undefined,
+    },
+  );
+    } catch (err) {
+      if (err instanceof VisionError) {
+        return c.json({ error: err.message }, err.status === 503 ? 503 : 502);
+      }
+      throw err;
+    }
+  const photoHash = sha256(body.imageBase64.slice(0, 4096));
+  const tx: Transaction = {
+    id: body.id,
+    collectorId: body.collectorId,
+    recyclerId: null,
+    category: vision.category,
+    weightKg: weightKg ?? 0,
+    estimatedValueInr: vision.estimatedValueInr ?? 0,
+    photoHash,
+    gpsLat: typeof body.lat === "number" ? body.lat : null,
+    gpsLng: typeof body.lng === "number" ? body.lng : null,
+    timestamp: new Date().toISOString(),
+    status: "offered",
+    ledgerRef: null,
+    synced: true,
+  };
+  lots.set(tx.id, tx);
+  const entry = await createEntry(sha256, {
+    photoHash: `photo:${photoHash}`,
+    weightKg: tx.weightKg,
+    gpsLat: tx.gpsLat,
+    gpsLng: tx.gpsLng,
+    timestamp: tx.timestamp,
+    collectorId: tx.collectorId,
+    recyclerId: null,
+    prevHash: "",
+  });
+  chains.set(tx.id, [entry]);
+  tx.ledgerRef = entry.refCode;
+  const nearby = rankRecyclers(
+    RECYCLERS,
+    vision.category,
+    tx.gpsLat ?? 21.15,
+    tx.gpsLng ?? 79.09,
+  ).slice(0, 5);
+  return c.json({ lot: tx, vision, nearby }, 201);
+});
+
 app.get("/lots", (c) => c.json([...lots.values()]));
 
 /** One-tap confirm: seals the ledger chain + marks the lot confirmed. */
@@ -154,7 +252,40 @@ app.get("/export", (c) => {
   });
 });
 
-// Serve when run directly: node --experimental-strip-types src/server.ts
+app.get("/market", (c) =>
+  c.json({ asOf: MARKET_AS_OF, rows: MARKET_SNAPSHOT }),
+);
+
+/**
+ * Live refresh via Exa web research (recommended request shape: query +
+ * highlights only). Needs EXA_API_KEY server-side; without it the board
+ * keeps serving the researched snapshot above.
+ */
+app.post("/market/refresh", async (c) => {
+  const key = process.env.EXA_API_KEY;
+  if (!key) {
+    return c.json(
+      { error: "EXA_API_KEY not configured; serving snapshot" },
+      503,
+    );
+  }
+  const res = await fetch("https://api.exa.ai/search", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": key },
+    body: JSON.stringify({
+      query: "scrap copper aluminium e-waste PCB battery plastic rate per kg India",
+      contents: { highlights: true },
+    }),
+  });
+  if (!res.ok) return c.json({ error: `exa search failed: ${res.status}` }, 502);
+  const data: unknown = await res.json();
+  if (!data || typeof data !== "object" || !("results" in data)) {
+    return c.json({ error: "unexpected exa response shape" }, 502);
+  }
+  return c.json({ asOf: new Date().toISOString().slice(0, 10), exa: data });
+});
+
+// Serve when run directly: tsx src/server.ts (npm run dev)
 if (process.argv[1]?.endsWith("server.ts")) {
   serve({ fetch: app.fetch, port: 8080 }, (info) =>
     console.log(`Akiri API on http://localhost:${info.port}`),

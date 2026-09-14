@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import MCIcon from "@expo/vector-icons/MaterialCommunityIcons";
 import * as Speech from "expo-speech";
@@ -49,14 +49,30 @@ export const tint = {
 
 export function AudioButton({ text, lang }: { text: string; lang: AppLanguage }) {
   const { t } = useTranslation();
+  const [speaking, setSpeaking] = useState(false);
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={t("listen")}
       style={[styles.audio, styles.audioRow]}
-      onPress={() => Speech.speak(text, { language: ttsLocale[lang] })}
+      onPress={() => {
+        if (speaking) {
+          Speech.stop();
+          setSpeaking(false);
+        } else {
+          Speech.stop();
+          setSpeaking(true);
+          Speech.speak(text, { 
+            language: ttsLocale[lang],
+            onDone: () => setSpeaking(false),
+            onStopped: () => setSpeaking(false),
+            onError: () => setSpeaking(false),
+          });
+        }
+      }}
     >
-      <MCIcon name="volume-high" size={20} color={tint.infoInk} />
+      <MCIcon name={speaking ? "stop" : "volume-high"} size={20} color={tint.infoInk} />
       <Text style={styles.audioText}>{t("listen")}</Text>
     </Pressable>
   );
@@ -93,14 +109,30 @@ const styles = StyleSheet.create({
 /** Large round text-to-speech button (min 64px target, low-literacy friendly). */
 export function SpeakDot({ text, lang }: { text: string; lang: AppLanguage }) {
   const { t } = useTranslation();
+  const [speaking, setSpeaking] = useState(false);
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={t("listen")}
       style={styles.dot}
-      onPress={() => Speech.speak(text, { language: ttsLocale[lang] })}
+      onPress={() => {
+        if (speaking) {
+          Speech.stop();
+          setSpeaking(false);
+        } else {
+          Speech.stop();
+          setSpeaking(true);
+          Speech.speak(text, { 
+            language: ttsLocale[lang],
+            onDone: () => setSpeaking(false),
+            onStopped: () => setSpeaking(false),
+            onError: () => setSpeaking(false),
+          });
+        }
+      }}
     >
-      <MCIcon name="volume-high" size={30} color={tint.infoInk} />
+      <MCIcon name={speaking ? "stop" : "volume-high"} size={30} color={tint.infoInk} />
     </Pressable>
   );
 }

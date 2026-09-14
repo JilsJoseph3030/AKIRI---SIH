@@ -20,14 +20,25 @@ Akiri (SIH26229 Kabadiwala Connect, Team Nexus) brings informal e-waste/scrap co
 - `backend/src/domain/` — pure logic (see above). `backend/src/server.ts` + `store.ts` — API + store. `backend/tests/` — vitest suites.
 - `web/app/` — `page.tsx` (landing), `dashboard/page.tsx` (client lot queue), `api/assistant/route.ts` (server proxy). `web/components/AssistantWidget.tsx`, `web/lib/knowledge.ts`.
 - `docs/knowledge-base/` — 6 grounding docs: `brief`, `features`, `epr-basics`, `handover`, `pricing`, `faq`.
+- Voice channel (`backend/src/voice/` + `domain/voice.ts`): Gather-based
+  TwiML turns (no Media Streams/Pipecat — second runtime unjustified for
+  3 flows). All `/voice/*` webhooks gated by HMAC-SHA1 signature against
+  `TWILIO_AUTH_TOKEN` + exact public URL (`VOICE_PUBLIC_BASE_URL`).
+  Phone lots are `pending_pickup` with NO chain entry until photo handover;
+  callers are `voice:<hash12>` pseudonyms (salt `VOICE_SALT`).
+  Call agent: Muse Spark 1.3 contributor-free (`muse-spark-1.3-contributor-free`
+  via `/zen/v1/responses`) guides understanding in 13 Indian languages with
+  a per-request rate table; keyword detectors are the offline fallback.
+  NOTE (verified 2026-09-11): the free tier rejects raw API calls
+  ("can only be used in OpenCode") and paid needs a payment method — until
+  either is resolved the keyword path carries all turns.
 
-## Development Commands
 
 ```bash
 npm install                                    # all workspaces (hoisted at root)
 npm test                                       # backend vitest (only workspace with tests)
 npm run typecheck --workspaces --if-present
-cd backend && npm run dev                      # API :8080 (tsx)
+cd backend && npm run dev                      # API :8080 (loads .env via --env-file)
 cd web && npm run dev                          # dashboard :3000
 cd app && npx expo start                       # Expo Go (doctor: 21/21 clean)
 cd app && EXPO_PUBLIC_API_BASE_URL=http://<pc-lan-ip>:8080 npx expo start  # physical phone (PowerShell: $env:...)
@@ -35,7 +46,7 @@ cd app && EXPO_PUBLIC_API_BASE_URL=http://<pc-lan-ip>:8080 npx expo start  # phy
 
 ## Code Conventions & Common Patterns
 
-- TypeScript strict everywhere (`tsconfig.base.json`: ES2022, bundler resolution, `noEmit`); domain imports use `.js`-suffixed relatives. No ESLint/Prettier configured.
+- TypeScript strict everywhere (`tsconfig.base.json`: ES2022, bundler resolution, `noEmit`); relative imports are extensionless (Metro cannot resolve NodeNext `.js` suffixes). No ESLint/Prettier configured.
 - Domain logic lives in `backend/src/domain`; apps hold UI + platform adapters only. Never leak pricing/ranking/ledger math into components.
 - Boundary validation, no blind casts: Hono routes assert `LotIntake`/`ConfirmIntake` then check each field (`isCategory` guard); dashboard parses network JSON via `isLot`/`toLot`/`asLots` guards with mock fallback.
 - Errors: typed JSON + status codes (`{ error }` 400/404); sync failures stay queued and break the flush loop for retry. No swallowed failures.

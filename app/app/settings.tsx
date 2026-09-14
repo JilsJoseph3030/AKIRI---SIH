@@ -6,9 +6,10 @@ import { useApp } from "../lib/store";
 import { theme, tint } from "../components/ui";
 
 const LANGS: { code: AppLanguage; label: string }[] = [
-  { code: "mr", label: "मराठी" },
-  { code: "hi", label: "हिंदी" },
   { code: "en", label: "English" },
+  { code: "hi", label: "हिंदी" },
+  { code: "mr", label: "मराठी" },
+  { code: "ml", label: "മലയാളം" },
 ];
 
 export default function Settings() {
@@ -31,7 +32,7 @@ export default function Settings() {
               i18n.changeLanguage(l.code);
             }}
           >
-            <Text style={styles.langText}>{l.label}</Text>
+            <Text style={styles.langText} adjustsFontSizeToFit minimumFontScale={0.7} numberOfLines={1}>{l.label}</Text>
           </Pressable>
         ))}
       </View>
@@ -42,7 +43,7 @@ export default function Settings() {
         </View>
       </View>
       <View style={styles.toggle}>
-        <Text style={styles.toggleText}>{t("digitalToggle")}</Text>
+        <Text style={styles.toggleText} adjustsFontSizeToFit minimumFontScale={0.5} numberOfLines={2}>{t("digitalToggle")}</Text>
         <Switch value={digital} onValueChange={setDigital} />
       </View>
     </View>
@@ -52,8 +53,8 @@ export default function Settings() {
 const styles = StyleSheet.create({
   wrap: { flex: 1, padding: 20, gap: 14 },
   head: { color: theme.ink, fontSize: 20, fontWeight: "800" },
-  row: { flexDirection: "row", gap: 10 },
-  lang: { backgroundColor: theme.card, borderColor: theme.line, borderWidth: 1, borderRadius: theme.radius, padding: 16, flex: 1, alignItems: "center" },
+  row: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  lang: { backgroundColor: theme.card, borderColor: theme.line, borderWidth: 1, borderRadius: theme.radius, padding: 16, flex: 1, minWidth: "45%", alignItems: "center" },
   active: { borderColor: theme.accent, borderWidth: 2 },
   langText: { color: theme.ink, fontSize: 17, fontWeight: "700" },
   cash: { backgroundColor: tint.okBg, borderColor: tint.okBd, borderWidth: 1, borderRadius: theme.radius, padding: 18 },

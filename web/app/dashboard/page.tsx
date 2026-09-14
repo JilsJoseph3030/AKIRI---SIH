@@ -1,7 +1,31 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ArrowRight,
+  BadgeCheck,
+  BatteryCharging,
+  Cable,
+  Check,
+  Clock,
+  Cpu,
+  Download,
+  Inbox,
+  LayoutGrid,
+  Magnet,
+  Megaphone,
+  Monitor,
+  Package,
+  Recycle,
+  RefreshCw,
+  ShieldCheck,
+  Tv,
+  Wallet,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import AssistantWidget from "../../components/AssistantWidget";
+import MarketBoard from "../../components/MarketBoard";
+import { apiHeaders } from "../../lib/api";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
@@ -30,14 +54,14 @@ const MOCK_LOTS: Lot[] = [
   },
 ];
 
-const CATEGORY_ICON: Record<string, string> = {
-  pcb: "🖥️",
-  battery: "🔋",
-  cable: "🔌",
-  crt: "📺",
-  lcd_panel: "🖵",
-  motor_magnet: "🧲",
-  mixed_plastics: "♳",
+const CATEGORY_ICON: Record<string, LucideIcon> = {
+  pcb: Cpu,
+  battery: BatteryCharging,
+  cable: Cable,
+  crt: Tv,
+  lcd_panel: Monitor,
+  motor_magnet: Magnet,
+  mixed_plastics: Recycle,
 };
 
 function isLot(value: unknown): value is Record<string, unknown> {
@@ -60,8 +84,8 @@ function toLot(raw: Record<string, unknown>): Lot {
     id: str("id"),
     category: str("category"),
     weightKg: num("weightKg"),
-    estimatedValueInr: num("estimatedValueInr"),
     recyclerId: opt("recyclerId"),
+    estimatedValueInr: num("estimatedValueInr"),
     timestamp: str("timestamp"),
     status: str("status"),
     ledgerRef: opt("ledgerRef"),
@@ -76,6 +100,12 @@ function asLots(raw: unknown, fallback: Lot[]): Lot[] {
 
 type Filter = "all" | "offered" | "confirmed";
 
+const TABS: { key: Filter; label: string; icon: LucideIcon }[] = [
+  { key: "all", label: "All", icon: LayoutGrid },
+  { key: "offered", label: "Pending", icon: Clock },
+  { key: "confirmed", label: "Sealed", icon: Check },
+];
+
 export default function Dashboard() {
   const [lots, setLots] = useState<Lot[]>([]);
   const [live, setLive] = useState(false);
@@ -85,7 +115,7 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/lots`);
+      const res = await fetch(`${API}/lots`, { headers: apiHeaders() });
       if (!res.ok) throw new Error();
       setLots(asLots(await res.json(), MOCK_LOTS));
       setLive(true);
@@ -97,6 +127,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     load();
+    // Vision lots land from the app at any time — poll so the queue,
+    // stats, and values stay current without a manual refresh.
+    const poll = setInterval(load, 15000);
+    return () => clearInterval(poll);
   }, [load]);
 
   const stats = useMemo(() => {
@@ -116,7 +150,7 @@ export default function Dashboard() {
     try {
       const res = await fetch(`${API}/lots/${id}/confirm`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: apiHeaders({ "content-type": "application/json" }),
         body: JSON.stringify({ recyclerId: "rc-nag-01" }),
       });
       if (!res.ok) throw new Error();
@@ -140,100 +174,191 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={page}>
-      <header style={header}>
-        <div>
-          <div style={brand}>Akiri ♻️ Recycler</div>
-          <div style={sub}>MIDC Hingna, Nagpur · rc-nag-01</div>
-        </div>
-        <div style={headerRight}>
-          <span style={live ? livePill : demoPill}>
-            {live ? "🟢 Live API" : "🟡 Demo data"}
+    <div className="page">
+      <header className="page-head">
+        <div className="brand-block">
+          <span className="logo-badge" aria-hidden="true">
+            <Recycle size={28} />
           </span>
-          <span style={authPill}>✅ Authorized</span>
+          <div>
+            <p className="eyebrow">Recycler console</p>
+            <h1 className="brand">Akiri Recycler</h1>
+            <p className="page-sub">MIDC Hingna, Nagpur · rc-nag-01</p>
+          </div>
+        </div>
+        <div className="head-pills">
+          <span className={live ? "pill pill-green" : "pill pill-amber"}>
+            <span className="dot" aria-hidden="true" />
+            {live ? "Live API" : "Demo data"}
+          </span>
+          <span className="pill pill-neutral">
+            <ShieldCheck size={13} aria-hidden="true" /> Authorized
+          </span>
         </div>
       </header>
 
-      <section style={statGrid}>
-        <div style={statCard}>
-          <div style={statNum}>{stats.total}</div>
-          <div style={statCap}>Incoming lots</div>
+      {!live && (
+        <div className="alert alert-amber" role="status">
+          <span className="alert-illust" aria-hidden="true">
+            <Megaphone size={20} />
+          </span>
+          <div className="alert-body">
+            <strong>Showing demo data — collector API unreachable.</strong>
+            <p>
+              Start the backend, then retry. Expected at <code>{API}</code>.
+            </p>
+          </div>
+          <button className="btn btn-primary btn-small" onClick={load}>
+            <RefreshCw size={13} aria-hidden="true" /> Retry
+          </button>
         </div>
-        <div style={statCard}>
-          <div style={{ ...statNum, color: "#F2B134" }}>{stats.pending}</div>
-          <div style={statCap}>Awaiting confirmation</div>
+      )}
+
+      <section className="stats" aria-label="Lot summary">
+        <div className="stat-card">
+          <span className="stat-icon tint-green" aria-hidden="true">
+            <Package size={22} />
+          </span>
+          <div>
+            <div className="stat-num">{stats.total}</div>
+            <div className="stat-cap">Incoming lots</div>
+          </div>
         </div>
-        <div style={statCard}>
-          <div style={{ ...statNum, color: "#7BD88F" }}>{stats.confirmed}</div>
-          <div style={statCap}>Sealed handovers</div>
+        <div className="stat-card">
+          <span className="stat-icon tint-amber" aria-hidden="true">
+            <Clock size={22} />
+          </span>
+          <div>
+            <div className="stat-num" style={{ color: "var(--amber-strong)" }}>{stats.pending}</div>
+            <div className="stat-cap">Awaiting confirmation</div>
+          </div>
         </div>
-        <div style={statCard}>
-          <div style={statNum}>₹{stats.value.toLocaleString("en-IN")}</div>
-          <div style={statCap}>Total lot value</div>
+        <div className="stat-card">
+          <span className="stat-icon tint-deep" aria-hidden="true">
+            <BadgeCheck size={22} />
+          </span>
+          <div>
+            <div className="stat-num" style={{ color: "var(--accent-strong)" }}>{stats.confirmed}</div>
+            <div className="stat-cap">Sealed handovers</div>
+          </div>
+        </div>
+        <div className="stat-card">
+          <span className="stat-icon tint-bright" aria-hidden="true">
+            <Wallet size={22} />
+          </span>
+          <div>
+            <div className="stat-num">₹{stats.value.toLocaleString("en-IN")}</div>
+            <div className="stat-cap">Total lot value</div>
+          </div>
         </div>
       </section>
 
-      <div style={toolbar}>
-        <div style={tabs}>
-          {(["all", "offered", "confirmed"] as Filter[]).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              style={filter === f ? tabActive : tab}
-            >
-              {f === "all" ? "All" : f === "offered" ? "⏳ Pending" : "✅ Sealed"}
-            </button>
-          ))}
+      <MarketBoard />
+
+      <div className="section-head">
+        <div>
+          <p className="eyebrow">Lot queue</p>
+          <h2>Incoming lots</h2>
+          <p className="count">
+            {visible.length} of {lots.length} lots
+            {filter !== "all" && ` · filtered: ${filter}`}
+          </p>
         </div>
-        <div style={exportRow}>
-          <a href={`${API}/export?format=csv`} style={exportBtn}>⬇ CSV</a>
-          <a href={`${API}/export?format=json`} style={exportBtn}>⬇ JSON</a>
+        <div className="export-row">
+          <a className="btn btn-ghost btn-small" href={`${API}/export?format=csv`}>
+            <Download size={13} aria-hidden="true" /> CSV
+          </a>
+          <a className="btn btn-ghost btn-small" href={`${API}/export?format=json`}>
+            <Download size={13} aria-hidden="true" /> JSON
+          </a>
         </div>
       </div>
 
-      <section style={list}>
+      <div className="tabs" role="tablist" aria-label="Filter lots by status">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            role="tab"
+            aria-selected={filter === t.key}
+            onClick={() => setFilter(t.key)}
+            className={filter === t.key ? "tab tab-active" : "tab"}
+          >
+            <t.icon size={14} aria-hidden="true" />
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <section className="lot-list" aria-label="Incoming lots">
         {visible.map((lot) => {
           const sealed = lot.status === "confirmed";
+          const CatIcon = CATEGORY_ICON[lot.category] ?? Package;
           return (
-            <article key={lot.id} style={card}>
-              <div style={cardTop}>
-                <span style={catIcon}>{CATEGORY_ICON[lot.category] ?? "📦"}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={catName}>{lot.category.replace(/_/g, " ")}</div>
-                  <div style={meta}>
-                    {lot.weightKg} kg · ₹{lot.estimatedValueInr.toLocaleString("en-IN")} ·{" "}
+            <article
+              key={lot.id}
+              className="lot-card"
+              data-status={sealed ? "confirmed" : "offered"}
+            >
+              <div className="lot-top">
+                <span className="lot-icon">
+                  <CatIcon size={28} strokeWidth={1.8} aria-hidden="true" />
+                </span>
+                <div className="lot-main">
+                  <h3 className="lot-title">{lot.category.replace(/_/g, " ")}</h3>
+                  <p className="lot-figures">
+                    <strong>{lot.weightKg} kg</strong>
+                    {" · "}
+                    <strong className="value">
+                      ₹{lot.estimatedValueInr.toLocaleString("en-IN")}
+                    </strong>
+                  </p>
+                  <p className="lot-meta">
                     {lot.timestamp ? new Date(lot.timestamp).toLocaleString("en-IN") : "—"}
-                  </div>
+                    {" · "}
+                    {lot.id}
+                  </p>
                 </div>
-                <span style={sealed ? sealedPill : pendingPill}>
-                  {sealed ? "✅ Sealed" : "⏳ Pending"}
+                <span className={sealed ? "pill pill-green" : "pill pill-amber"}>
+                  {sealed ? (
+                    <Check size={12} aria-hidden="true" />
+                  ) : (
+                    <Clock size={12} aria-hidden="true" />
+                  )}
+                  {sealed ? "Sealed" : "Pending"}
                 </span>
               </div>
-              <div style={refRow}>
-                <span style={refLabel}>Ledger ref</span>
-                <code style={refCode}>{lot.ledgerRef ?? "queued…"}</code>
+              <div className="ref-well">
+                <span className="micro-label">Ledger ref</span>
+                <code className="ref-code">{lot.ledgerRef ?? "queued…"}</code>
               </div>
               {sealed ? (
-                <div style={sealedBy}>
+                <p className="sealed-by">
+                  <Check size={13} aria-hidden="true" />
                   Sealed{lot.recyclerId ? ` by ${lot.recyclerId}` : ""} · chain verified on confirm
-                </div>
+                </p>
               ) : (
-                <div style={confirmRow}>
+                <div className="confirm-row">
                   <input
                     placeholder="Type collector's reference code"
                     value={refInput[lot.id] ?? ""}
                     onChange={(e) =>
                       setRefInput((m) => ({ ...m, [lot.id]: e.target.value }))
                     }
-                    style={box}
+                    className="input"
                     aria-label="Lot reference code"
                   />
                   <button
                     onClick={() => confirm(lot.id)}
-                    style={confirming === lot.id ? btnBusy : btn}
+                    className="btn btn-primary"
                     disabled={confirming === lot.id}
                   >
-                    {confirming === lot.id ? "Sealing…" : "Confirm handover →"}
+                    {confirming === lot.id ? (
+                      "Sealing…"
+                    ) : (
+                      <>
+                        Confirm handover <ArrowRight size={16} aria-hidden="true" />
+                      </>
+                    )}
                   </button>
                 </div>
               )}
@@ -241,7 +366,12 @@ export default function Dashboard() {
           );
         })}
         {visible.length === 0 && (
-          <div style={empty}>📭 No {filter === "all" ? "" : filter + " "}lots right now.</div>
+          <div className="empty-state">
+            <span className="big" aria-hidden="true">
+              <Inbox size={30} />
+            </span>
+            No {filter === "all" ? "" : filter + " "}lots right now.
+          </div>
         )}
       </section>
 
@@ -249,83 +379,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
-const page: React.CSSProperties = {
-  maxWidth: 980, margin: "0 auto", padding: "24px 20px 120px",
-};
-const header: React.CSSProperties = {
-  display: "flex", justifyContent: "space-between", alignItems: "flex-start",
-  gap: 12, flexWrap: "wrap", marginBottom: 20,
-};
-const brand: React.CSSProperties = { fontSize: 30, fontWeight: 800 };
-const sub: React.CSSProperties = { color: "#A9B8AC", fontSize: 14, marginTop: 2 };
-const headerRight: React.CSSProperties = { display: "flex", gap: 8, flexWrap: "wrap" };
-const pill: React.CSSProperties = {
-  fontSize: 13, fontWeight: 700, padding: "6px 12px", borderRadius: 999,
-};
-const livePill: React.CSSProperties = { ...pill, background: "#24402C", color: "#7BD88F" };
-const demoPill: React.CSSProperties = { ...pill, background: "#3A2F14", color: "#F2B134" };
-const authPill: React.CSSProperties = { ...pill, background: "#1B241E", color: "#F2F5F0", border: "1px solid #2C3A2F" };
-const statGrid: React.CSSProperties = {
-  display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-  gap: 12, marginBottom: 20,
-};
-const statCard: React.CSSProperties = {
-  background: "#1B241E", border: "1px solid #2C3A2F",
-  borderRadius: 14, padding: "16px 18px",
-};
-const statNum: React.CSSProperties = { fontSize: 30, fontWeight: 800 };
-const statCap: React.CSSProperties = { color: "#A9B8AC", fontSize: 13, marginTop: 2 };
-const toolbar: React.CSSProperties = {
-  display: "flex", justifyContent: "space-between", alignItems: "center",
-  gap: 12, flexWrap: "wrap", marginBottom: 14,
-};
-const tabs: React.CSSProperties = { display: "flex", gap: 8 };
-const tab: React.CSSProperties = {
-  background: "#1B241E", color: "#A9B8AC", border: "1px solid #2C3A2F",
-  borderRadius: 999, padding: "8px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer",
-};
-const tabActive: React.CSSProperties = {
-  ...tab, background: "#24402C", color: "#7BD88F", borderColor: "#24402C",
-};
-const exportRow: React.CSSProperties = { display: "flex", gap: 8 };
-const exportBtn: React.CSSProperties = {
-  color: "#7BD88F", fontWeight: 700, fontSize: 14, textDecoration: "none",
-  border: "1px solid #2C3A2F", borderRadius: 999, padding: "8px 16px",
-};
-const list: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 12 };
-const card: React.CSSProperties = {
-  background: "#1B241E", border: "1px solid #2C3A2F",
-  borderRadius: 16, padding: 18,
-};
-const cardTop: React.CSSProperties = { display: "flex", gap: 12, alignItems: "flex-start" };
-const catIcon: React.CSSProperties = {
-  fontSize: 34, background: "#101613", borderRadius: 12,
-  width: 56, height: 56, display: "flex", alignItems: "center", justifyContent: "center",
-};
-const catName: React.CSSProperties = { fontSize: 19, fontWeight: 800, textTransform: "capitalize" };
-const meta: React.CSSProperties = { color: "#A9B8AC", fontSize: 14, marginTop: 2 };
-const sealedPill: React.CSSProperties = { ...pill, background: "#24402C", color: "#7BD88F", whiteSpace: "nowrap" };
-const pendingPill: React.CSSProperties = { ...pill, background: "#3A2F14", color: "#F2B134", whiteSpace: "nowrap" };
-const refRow: React.CSSProperties = {
-  display: "flex", alignItems: "center", gap: 10, marginTop: 12,
-  background: "#101613", borderRadius: 10, padding: "10px 12px",
-};
-const refLabel: React.CSSProperties = { color: "#A9B8AC", fontSize: 13 };
-const refCode: React.CSSProperties = {
-  color: "#7BD88F", fontWeight: 800, fontSize: 17, letterSpacing: 2,
-};
-const sealedBy: React.CSSProperties = { color: "#7BD88F", fontSize: 13, marginTop: 10 };
-const confirmRow: React.CSSProperties = { display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" };
-const box: React.CSSProperties = {
-  background: "#101613", color: "#F2F5F0", border: "1px solid #2C3A2F",
-  borderRadius: 10, padding: "12px", flex: "1 1 200px", fontSize: 15,
-};
-const btn: React.CSSProperties = {
-  background: "#7BD88F", color: "#101613", border: "none", borderRadius: 10,
-  padding: "12px 20px", fontWeight: 800, fontSize: 15, cursor: "pointer",
-};
-const btnBusy: React.CSSProperties = { ...btn, opacity: 0.6, cursor: "wait" };
-const empty: React.CSSProperties = {
-  textAlign: "center", color: "#A9B8AC", padding: 40, fontSize: 16,
-};

@@ -3,6 +3,7 @@ import MCIcon from "@expo/vector-icons/MaterialCommunityIcons";
 import { useTranslation } from "react-i18next";
 import { rankRecyclers, RECYCLERS } from "@akiri/backend/domain";
 import { theme } from "../components/ui";
+import CenterMap from "../components/CenterMap";
 
 export default function Recyclers() {
   const { t } = useTranslation();
@@ -11,6 +12,7 @@ export default function Recyclers() {
 
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
+      <CenterMap pins={ranked} userLat={21.15} userLng={79.09} />
       {ranked.map((r) => (
         <View key={r.id} style={styles.card}>
           <View style={styles.nameRow}>

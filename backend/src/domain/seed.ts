@@ -6,13 +6,13 @@ import type {
 } from "./schemas";
 
 export const MATERIALS: Material[] = [
-  { category: "crt", label: { en: "CRT monitor", hi: "सीआरटी मॉनिटर", mr: "सीआरटी मॉनिटर" }, hazardous: true, handlingNote: "Do not break the tube — leaded glass. Keep dry, hand over intact." },
-  { category: "lcd_panel", label: { en: "LCD panel", hi: "एलसीडी पैनल", mr: "एलसीडी पॅनेल" }, hazardous: true, handlingNote: "Cracked backlights may contain mercury. Do not crush." },
-  { category: "pcb", label: { en: "Circuit board (PCB)", hi: "सर्किट बोर्ड", mr: "सर्किट बोर्ड" }, hazardous: true, handlingNote: "Keep whole. No open burning to recover metal." },
-  { category: "cable", label: { en: "Cables / wires", hi: "तार / केबल", mr: "तारा / केबल" }, hazardous: false, handlingNote: "Do not burn insulation to strip copper." },
-  { category: "battery", label: { en: "Battery", hi: "बैटरी", mr: "बॅटरी" }, hazardous: true, handlingNote: "Tape terminals, keep away from heat and metal. Never puncture." },
-  { category: "motor_magnet", label: { en: "Motor / magnet assembly", hi: "मोटर / चुंबक", mr: "मोटर / चुंबक" }, hazardous: false, handlingNote: "Heavy — lift with care. Keep magnets away from phones." },
-  { category: "mixed_plastics", label: { en: "Mixed plastics", hi: "मिश्रित प्लास्टिक", mr: "मिश्र प्लास्टिक" }, hazardous: false, handlingNote: "Keep e-plastic separate from food containers." },
+  { category: "crt", label: { en: "CRT monitor", hi: "सीआरटी मॉनिटर", mr: "सीआरटी मॉनिटर", ml: "സിആർടി മോണിറ്റർ" }, hazardous: true, handlingNote: "Do not break the tube — leaded glass. Keep dry, hand over intact." },
+  { category: "lcd_panel", label: { en: "LCD panel", hi: "एलसीडी पैनल", mr: "एलसीडी पॅनेल", ml: "എൽസിഡി പാനൽ" }, hazardous: true, handlingNote: "Cracked backlights may contain mercury. Do not crush." },
+  { category: "pcb", label: { en: "Circuit board (PCB)", hi: "सर्किट बोर्ड", mr: "सर्किट बोर्ड", ml: "സർക്യൂട്ട് ബോർഡ്" }, hazardous: true, handlingNote: "Keep whole. No open burning to recover metal." },
+  { category: "cable", label: { en: "Cables / wires", hi: "तार / केबल", mr: "तारा / केबल", ml: "കമ്പി / വയർ" }, hazardous: false, handlingNote: "Do not burn insulation to strip copper." },
+  { category: "battery", label: { en: "Battery", hi: "बैटरी", mr: "बॅटरी", ml: "ബാറ്ററി" }, hazardous: true, handlingNote: "Tape terminals, keep away from heat and metal. Never puncture." },
+  { category: "motor_magnet", label: { en: "Motor / magnet assembly", hi: "मोटर / चुंबक", mr: "मोटर / चुंबक", ml: "മോട്ടോർ / കാന്തം" }, hazardous: false, handlingNote: "Heavy — lift with care. Keep magnets away from phones." },
+  { category: "mixed_plastics", label: { en: "Mixed plastics", hi: "मिश्रित प्लास्टिक", mr: "मिश्र प्लास्टिक", ml: "മിക്സഡ് പ്ലാസ്റ്റിക്" }, hazardous: false, handlingNote: "Keep e-plastic separate from food containers." },
 ];
 
 /** Fixture buying rates (INR/kg). Replace with live board via /prices sync. */

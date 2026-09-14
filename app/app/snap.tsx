@@ -20,7 +20,9 @@ import { classifier } from "../lib/classifier";
 import type { Classification } from "../lib/classifier";
 import { getDb } from "../lib/db";
 import { newId, useApp } from "../lib/store";
-import { postLot } from "../lib/api";
+import { identifyScan, postLot } from "../lib/api";
+import type { ScanResult } from "../lib/api";
+import CenterMap from "../components/CenterMap";
 import type { AppLanguage } from "../lib/i18n";
 
 const CAT_ICON: Record<string, IconName> = {
@@ -46,8 +48,11 @@ export default function Snap() {
   const [guesses, setGuesses] = useState<Classification[]>([]);
   const [category, setCategory] = useState<MaterialCategory>("pcb");
   const [weight, setWeight] = useState("2.5");
-  const [busy, setBusy] = useState(false);
+  const [scan, setScan] = useState<ScanResult | null>(null);
+  const [scanId, setScanId] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
   const lang = useApp((s) => s.language);
+  const pickedRef = useRef(false);
   const addLot = useApp((s) => s.addLot);
 
   if (!permission?.granted) {
@@ -61,39 +66,77 @@ export default function Snap() {
     );
   }
 
+  async function uriToBase64(uri: string): Promise<string | null> {
+    try {
+      const res = await fetch(uri);
+      const blob = await res.blob();
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("read failed"));
+        reader.readAsDataURL(blob);
+      });
+      return dataUrl.split(",")[1] ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   const weightKg = Number(weight) || 0;
   const rate = PRICES.find((p) => p.category === category)?.ratePerKg ?? 0;
   const value = estimateValue(category, weightKg, PRICES, "Nagpur");
   const top = guesses[0];
   const unsure = top !== undefined && top.confidence < 0.7;
+  const busy = scanning;
 
   async function capture() {
-    if (busy) return;
-    setBusy(true);
+    if (scanning) return;
+    pickedRef.current = false;
+    const photo = await camera.current?.takePictureAsync({ base64: true, quality: 0.6 });
+    if (!photo?.uri) return;
+    setPhotoUri(photo.uri);
+    setScan(null);
+    const results = await classifier.classify(photo.uri);
+    const seen = new Set<MaterialCategory>();
+    const unique = results.filter((r) => {
+      if (seen.has(r.category)) return false;
+      seen.add(r.category);
+      return true;
+    });
+    setGuesses(unique);
+    if (unique[0]) setCategory(unique[0].category);
+    const sid = newId();
+    setScanId(sid);
+    setScanning(true);
     try {
-      const photo = await camera.current?.takePictureAsync();
-      if (!photo?.uri) return;
-      setPhotoUri(photo.uri);
-      const results = await classifier.classify(photo.uri);
-      // Guard: a model may repeat a category (the mock returns
-      // mixed_plastics twice when it is the top guess) — chip keys
-      // must stay unique or React drops/duplicates children.
-      const seen = new Set<MaterialCategory>();
-      const unique = results.filter((r) => {
-        if (seen.has(r.category)) return false;
-        seen.add(r.category);
-        return true;
-      });
-      setGuesses(unique);
-      if (unique[0]) setCategory(unique[0].category);
+      const b64 = photo.base64 ?? (await uriToBase64(photo.uri));
+      if (b64) {
+        const result = await identifyScan({
+          id: sid,
+          collectorId: "col-device",
+          imageBase64: b64,
+          weightKg: Number(weight) || 0,
+        });
+        if (result) {
+          setScan(result);
+          if (!pickedRef.current) setCategory(result.category as MaterialCategory);
+        }
+      }
     } finally {
-      setBusy(false);
+      setScanning(false);
     }
   }
 
   function retake() {
     setPhotoUri(null);
     setGuesses([]);
+    setScan(null);
+    pickedRef.current = false;
+  }
+
+  function pick(next: MaterialCategory) {
+    pickedRef.current = true;
+    setCategory(next);
   }
 
   function step(delta: number) {
@@ -103,30 +146,37 @@ export default function Snap() {
 
   async function save() {
     if (weightKg <= 0) return;
-    const id = newId();
+    const id = scanId ?? newId();
     const db = getDb();
+    const finalCategory = scan ? (scan.category as MaterialCategory) : category;
+    const finalValue = scan?.estimatedValueInr ?? value;
     await db.runAsync(
       `INSERT INTO lots (id, category, weight_kg, value_inr, photo_uri, photo_hash, timestamp, synced)
        VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
-      [id, category, weightKg, value, photoUri, `photo:${id}`, new Date().toISOString()],
+      [id, finalCategory, weightKg, finalValue, photoUri, `photo:${id}`, new Date().toISOString()],
     );
-    let ledgerRef: string | null = null;
-    let synced = false;
-    try {
-      ({ ledgerRef } = await postLot({
-        id, collectorId: "col-device", category, weightKg, photoHash: `photo:${id}`,
-      }));
-      synced = true;
+    let ledgerRef: string | null = scan?.ledgerRef ?? null;
+    let synced = scan !== null;
+    if (!scan) {
+      try {
+        ({ ledgerRef } = await postLot({
+          id, collectorId: "col-device", category, weightKg, photoHash: `photo:${id}`,
+        }));
+        synced = true;
+        await db.runAsync(`UPDATE lots SET synced = 1, ledger_ref = ? WHERE id = ?`, [ledgerRef, id]);
+      } catch {
+        synced = false;
+      }
+    } else {
       await db.runAsync(`UPDATE lots SET synced = 1, ledger_ref = ? WHERE id = ?`, [ledgerRef, id]);
-    } catch {
-      synced = false; // offline: stays queued, flushes on reconnect
     }
-    addLot({ id, photoUri, category, weightKg, valueInr: value, ledgerRef, synced });
-    retake();
-    router.push("/ledger");
+    addLot({ id, photoUri, category: finalCategory, weightKg, valueInr: finalValue, ledgerRef, synced });
+    setPhotoUri(null);
+    setGuesses([]);
+    setScan(null);
+    pickedRef.current = false;
   }
 
-  // Step 1: capture
   if (!photoUri) {
     return (
       <View style={styles.wrap}>
@@ -143,7 +193,6 @@ export default function Snap() {
     );
   }
 
-  // Step 2: verify + weigh + save
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
       <Image source={{ uri: photoUri }} style={styles.preview} resizeMode="cover" />
@@ -171,7 +220,6 @@ export default function Snap() {
           })}
         </View>
       )}
-
       <View style={styles.grid}>
         {MATERIALS.map((m) => {
           const selected = m.category === category;
@@ -180,10 +228,10 @@ export default function Snap() {
             <Pressable
               key={m.category}
               style={[styles.cat, selected && { borderColor: color, borderWidth: 2 }]}
-              onPress={() => setCategory(m.category)}
+              onPress={() => pick(m.category)}
             >
               <MCIcon name={CAT_ICON[m.category] ?? "tag"} size={26} color={color} />
-              <Text style={styles.catText} numberOfLines={2}>
+              <Text style={styles.catText} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.7}>
                 {m.label[lang]}
               </Text>
             </Pressable>
@@ -191,6 +239,24 @@ export default function Snap() {
         })}
       </View>
 
+      {scanning && (
+        <View style={styles.scanRow}>
+          <MCIcon name="magnify" size={20} color={theme.accent} />
+          <Text style={styles.scanHint}>Identifying…</Text>
+        </View>
+      )}
+      {scan && (
+        <View style={styles.scanCard}>
+          <View style={styles.scanRow}>
+            <MCIcon name="robot" size={22} color={theme.ink} />
+            <Text style={styles.scanTitle} adjustsFontSizeToFit minimumFontScale={0.7} numberOfLines={2}>
+              {scan.partKey ? scan.partKey.replace(/-/g, " ") : scan.category}
+              {scan.modelHint ? ` · ${scan.modelHint}` : ""}
+            </Text>
+          </View>
+          <Text style={styles.scanPrice}>{scan.priceText || `₹${value}`}</Text>
+        </View>
+      )}
       <Text style={styles.label}>{t("weight")}</Text>
       <View style={styles.stepper}>
         <Pressable
@@ -226,13 +292,16 @@ export default function Snap() {
         text={`${labelFor(category, lang)}, ${weight} kilo, ${value} rupees`}
         lang={lang}
       />
+      {scan && scan.nearby && scan.nearby.length > 0 && (
+        <CenterMap pins={scan.nearby} userLat={21.15} userLng={79.09} />
+      )}
       <Pressable
         style={[styles.save, weightKg <= 0 && styles.disabled]}
         onPress={save}
         disabled={weightKg <= 0}
       >
         <View style={styles.saveRow}>
-          <Text style={styles.saveText}>
+          <Text style={styles.saveText} adjustsFontSizeToFit minimumFontScale={0.6} numberOfLines={1}>
             {t("saveLot")} · ₹{value}
           </Text>
           <MCIcon name="content-save" size={22} color={theme.accentInk} />
@@ -241,7 +310,6 @@ export default function Snap() {
     </ScrollView>
   );
 }
-
 const styles = StyleSheet.create({
   wrap: { flexGrow: 1, padding: 20, gap: 14 },
   cam: { flex: 1, minHeight: 340, borderRadius: theme.radiusLg, overflow: "hidden" },
@@ -284,6 +352,11 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   catText: { color: theme.ink, fontSize: 13, fontWeight: "700", textAlign: "center" },
+  scanRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  scanHint: { color: theme.accent, fontSize: 16, fontWeight: "700" },
+  scanCard: { backgroundColor: theme.card, borderColor: theme.line, borderWidth: 1, borderRadius: theme.radius, padding: 14, gap: 4 },
+  scanTitle: { color: theme.ink, fontSize: 17, fontWeight: "800", textTransform: "capitalize", flex: 1 },
+  scanPrice: { color: theme.accent, fontSize: 18, fontWeight: "800" },
   label: { color: theme.sub, fontSize: 15 },
   stepper: { flexDirection: "row", gap: 8, alignItems: "stretch" },
   stepBtn: {

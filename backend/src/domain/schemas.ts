@@ -42,8 +42,8 @@ export interface Recycler {
 }
 
 /** 4. Transaction dataset — a weighed lot offered/confirmed for handover. */
-export type TransactionStatus = "queued" | "offered" | "confirmed" | "paid";
-
+/** Phone-channel lots wait for photo/weight/GPS before any hash entry exists. */
+export type TransactionStatus = "queued" | "offered" | "confirmed" | "paid" | "pending_pickup";
 export interface Transaction {
   id: string; // client-generated UUID (idempotency key)
   collectorId: string;
