@@ -9,9 +9,10 @@ import { AudioButton, SectionTitle, SpeakDot, strip, theme, tint } from "../comp
 import type { IconName } from "../components/ui";
 
 const LANGS: { code: AppLanguage; label: string }[] = [
+  { code: "en", label: "English" },
   { code: "hi", label: "हिंदी" },
   { code: "mr", label: "मराठी" },
-  { code: "en", label: "ENG" },
+  { code: "ml", label: "മലയാളം" },
 ];
 
 const CAT_ICON: Record<string, IconName> = {
@@ -40,6 +41,7 @@ export default function Home() {
   const spokenRates = topRates
     .map((p) => `${labelFor(p.category, lang)} ${p.ratePerKg} rupees per kilo`)
     .join(". ");
+  const total = lots.reduce((n, l) => n + l.valueInr, 0);
   const earned = lots.filter((l) => l.synced).reduce((n, l) => n + l.valueInr, 0);
   const due = lots.filter((l) => !l.synced).reduce((n, l) => n + l.valueInr, 0);
   const first = lots[0];
@@ -78,7 +80,7 @@ export default function Home() {
                 i18n.changeLanguage(l.code);
               }}
             >
-              <Text style={[styles.segText, lang === l.code && styles.segTextActive]}>
+              <Text style={[styles.segText, lang === l.code && styles.segTextActive]} adjustsFontSizeToFit minimumFontScale={0.7} numberOfLines={1}>
                 {l.label}
               </Text>
             </Pressable>
@@ -94,21 +96,21 @@ export default function Home() {
                 <View style={styles.stepDot}>
                   <MCIcon name="camera" size={30} color={theme.accentInk} />
                 </View>
-                <Text style={styles.stepText}>{t("stepPhoto")}</Text>
+                <Text style={styles.stepText} adjustsFontSizeToFit minimumFontScale={0.5} numberOfLines={2}>{t("stepPhoto")}</Text>
               </View>
               <MCIcon name="arrow-right" size={22} color="rgba(255,255,255,0.5)" style={styles.arrow} />
               <View style={styles.step}>
                 <View style={styles.stepDot}>
                   <MCIcon name="scale" size={30} color={theme.accentInk} />
                 </View>
-                <Text style={styles.stepText}>{t("stepWeight")}</Text>
+                <Text style={styles.stepText} adjustsFontSizeToFit minimumFontScale={0.5} numberOfLines={2}>{t("stepWeight")}</Text>
               </View>
               <MCIcon name="arrow-right" size={22} color="rgba(255,255,255,0.5)" style={styles.arrow} />
               <View style={styles.step}>
                 <View style={styles.stepDot}>
                   <MCIcon name="currency-inr" size={30} color={theme.accentInk} />
                 </View>
-                <Text style={styles.stepText}>{t("stepCash")}</Text>
+                <Text style={styles.stepText} adjustsFontSizeToFit minimumFontScale={0.5} numberOfLines={2}>{t("stepCash")}</Text>
               </View>
             </View>
           </Pressable>
@@ -198,14 +200,14 @@ export default function Home() {
         {/* Earnings summary (draft: dark summary card) */}
         <Link href="/earnings" asChild>
           <Pressable style={styles.earn}>
-            <Text style={styles.earnCap}>{t("todayEarn")}</Text>
-            <Text style={styles.earnBig}>₹{earned}</Text>
+            <Text style={styles.earnCap} adjustsFontSizeToFit minimumFontScale={0.5} numberOfLines={1}>{t("todayEarn")}</Text>
+            <Text style={styles.earnBig} adjustsFontSizeToFit minimumFontScale={0.5} numberOfLines={1}>₹{total}</Text>
             <View style={styles.earnSplit}>
-              <Text style={styles.earnSub}>
-                {t("pending")}: ₹{due}
+              <Text style={styles.earnSub} adjustsFontSizeToFit minimumFontScale={0.5} numberOfLines={1}>
+                {t("authorize")}: ₹{earned}
               </Text>
-              <Text style={styles.earnSub}>
-                {t("total")}: ₹{earned + due}
+              <Text style={styles.earnSub} adjustsFontSizeToFit minimumFontScale={0.5} numberOfLines={1}>
+                {t("pending")}: ₹{due}
               </Text>
             </View>
           </Pressable>
@@ -251,7 +253,7 @@ function TabItem({
     <Link href={href} asChild>
       <Pressable style={styles.tab}>
         <MCIcon name={icon} size={28} color={theme.sub} />
-        <Text style={styles.tabLabel} numberOfLines={1}>
+        <Text style={styles.tabLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
           {label}
         </Text>
       </Pressable>

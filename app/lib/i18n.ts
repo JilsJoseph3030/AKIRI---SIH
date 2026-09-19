@@ -19,6 +19,7 @@ const resources = {
       myLots: "My lots", viewAll: "View all", findRecycler: "Find recycler",
       todayEarn: "Today's earnings", safetyHeed: "Safety — take care",
       ready: "Ready", emptyLots: "No lots yet — snap your first photo",
+      retake: "Retake", checkItem: "Check the item", saveLot: "Save lot",
     },
   },
   hi: {
@@ -37,6 +38,7 @@ const resources = {
       myLots: "मेरा सामान", viewAll: "सब देखें", findRecycler: "ग्राहक खोजें",
       todayEarn: "आज की कमाई", safetyHeed: "सुरक्षा - ध्यान दें",
       ready: "तैयार है", emptyLots: "अभी कोई सामान नहीं — पहली फोटो लें",
+      retake: "दोबारा लें", checkItem: "सामान जांचें", saveLot: "लाट सहेजें",
     },
   },
   mr: {
@@ -55,6 +57,26 @@ const resources = {
       myLots: "माझे साहित्य", viewAll: "सर्व पहा", findRecycler: "ग्राहक शोधा",
       todayEarn: "आजची कमाई", safetyHeed: "सुरक्षा - लक्ष द्या",
       ready: "तयार आहे", emptyLots: "अद्याप सामान नाही — पहिला फोटो घ्या",
+      retake: "पुन्हा घ्या", checkItem: "साहित्य तपासा", saveLot: "लॉट जतन करा",
+    },
+  },
+  ml: {
+    translation: {
+      home: "ഹോം", snap: "ഫോട്ടോ & ലോട്ട്", prices: "വില പട്ടിക",
+      recyclers: "റീസൈക്ലർമാർ", ledger: "ട്രസ്റ്റ് ലെഡ്ജർ", earnings: "വരുമാനം",
+      safety: "സുരക്ഷ", settings: "ക്രമീകരണങ്ങൾ", listen: "കേൾക്കുക",
+      weight: "ഭാരം (കിലോ)", value: "ഏകദേശ വില",
+      confirm: "സ്ഥിരീകരിക്കുക", retry: "വീണ്ടും ശ്രമിക്കുക", offline: "ഓഫ്‌ലൈൻ — സംരക്ഷിച്ചു, സിങ്ക് ചെയ്യും",
+      online: "ഓൺലൈൻ", cashDefault: "പണം നൽകൽ (സ്ഥിരസ്ഥിതി)",
+      digitalToggle: "ഡിജിറ്റൽ പേയ്‌മെന്റുകൾ പ്രവർത്തനക്ഷമമാക്കുക",
+      language: "ഭാഷ", pending: "കുടിശ്ശിക", total: "മൊത്തം സമ്പാദിച്ചത്",
+      history: "ചരിത്രം", authorize: "അംഗീകരിച്ചു", noBurn: "മാലിന്യം ഒരിക്കലും കത്തിക്കരുത്",
+      howItWorks: "ഇത് എങ്ങനെ പ്രവർത്തിക്കുന്നു", stepPhoto: "ഫോട്ടോ എടുക്കുക", stepWeight: "ഭാരം ചേർക്കുക",
+      stepCash: "പണം നേടുക", todayRates: "ഇന്നത്തെ നിരക്കുകൾ", listenAll: "എല്ലാം കേൾക്കുക",
+      myLots: "എന്റെ സാധനങ്ങൾ", viewAll: "എല്ലാം കാണുക", findRecycler: "റീസൈക്ലറെ കണ്ടെത്തുക",
+      todayEarn: "ഇന്നത്തെ വരുമാനം", safetyHeed: "സുരക്ഷ — ശ്രദ്ധിക്കുക",
+      ready: "തയ്യാറാണ്", emptyLots: "ഇതുവരെ സാധനങ്ങളില്ല — നിങ്ങളുടെ ആദ്യ ഫോട്ടോ എടുക്കുക",
+      retake: "വീണ്ടും എടുക്കുക", checkItem: "സാധനം പരിശോധിക്കുക", saveLot: "ലോട്ട് സംരക്ഷിക്കുക",
     },
   },
 } as const;
@@ -62,8 +84,7 @@ const resources = {
 export type AppLanguage = keyof typeof resources;
 
 const device = Localization.getLocales()[0]?.languageCode ?? "en";
-const initialLng: AppLanguage =
-  device === "mr" ? "mr" : device === "hi" ? "hi" : "en";
+const initialLng: AppLanguage = "en"; // Enforced English as primary language
 
 // Bind the instance synchronously at import time (proven: setI18n runs
 // inside .init(), not after) so no first render can hit NO_I18NEXT_INSTANCE.
@@ -82,6 +103,7 @@ export function initI18n(): Promise<void> {
 export const ttsLocale: Record<AppLanguage, string> = {
   mr: "mr-IN",
   hi: "hi-IN",
+  ml: "ml-IN",
   en: "en-IN",
 };
 

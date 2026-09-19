@@ -10,20 +10,21 @@ export default function Earnings() {
   const confirmed = lots.filter((l) => l.synced);
   const pending = lots.filter((l) => !l.synced);
   const sum = (xs: typeof lots) => xs.reduce((n, l) => n + l.valueInr, 0);
+  const total = sum(lots);
 
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
       <View style={styles.hero}>
-        <Text style={styles.cap}>{t("todayEarn")}</Text>
-        <Text style={styles.bigNum}>₹{sum(confirmed)}</Text>
+        <Text style={styles.cap} adjustsFontSizeToFit minimumFontScale={0.5} numberOfLines={1}>{t("todayEarn")}</Text>
+        <Text style={styles.bigNum} adjustsFontSizeToFit minimumFontScale={0.5} numberOfLines={1}>₹{total}</Text>
         <View style={styles.split}>
           <View>
-            <Text style={styles.capSm}>{t("pending")}</Text>
-            <Text style={styles.splitNum}>₹{sum(pending)}</Text>
+            <Text style={styles.capSm} adjustsFontSizeToFit minimumFontScale={0.5} numberOfLines={1}>{t("authorize")}</Text>
+            <Text style={styles.splitNum} adjustsFontSizeToFit minimumFontScale={0.5} numberOfLines={1}>₹{sum(confirmed)}</Text>
           </View>
           <View style={styles.right}>
-            <Text style={styles.capSm}>{t("total")}</Text>
-            <Text style={styles.splitNum}>₹{sum(confirmed) + sum(pending)}</Text>
+            <Text style={styles.capSm} adjustsFontSizeToFit minimumFontScale={0.5} numberOfLines={1}>{t("pending")}</Text>
+            <Text style={styles.splitNum} adjustsFontSizeToFit minimumFontScale={0.5} numberOfLines={1}>₹{sum(pending)}</Text>
           </View>
         </View>
       </View>
@@ -32,7 +33,7 @@ export default function Earnings() {
         <View key={l.id} style={styles.row}>
           <View style={styles.rowLeft}>
             <MCIcon name="currency-inr" size={18} color={theme.sub} />
-            <Text style={styles.rowText}>{l.category} · {l.weightKg} kg</Text>
+            <Text style={styles.rowText} adjustsFontSizeToFit minimumFontScale={0.6} numberOfLines={2}>{l.category} · {l.weightKg} kg</Text>
           </View>
           <Text style={styles.rowNum}>₹{l.valueInr}</Text>
         </View>

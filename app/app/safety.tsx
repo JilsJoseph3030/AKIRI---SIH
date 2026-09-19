@@ -5,11 +5,11 @@ import { AudioButton, theme, tint } from "../components/ui";
 import type { IconName } from "../components/ui";
 import { useApp } from "../lib/store";
 
-const CARDS: { icon: IconName; en: string; hi: string; mr: string }[] = [
-  { icon: "battery-alert", en: "Batteries: tape the ends, keep away from heat. Never puncture.", hi: "बैटरी: सिरों पर टेप लगाएं, गर्मी से दूर रखें। कभी छेद न करें।", mr: "बॅटरी: टोकांना टेप लावा, उष्णतेपासून दूर ठेवा. कधीही छेद पाडू नका." },
-  { icon: "television", en: "CRT screens: leaded glass inside. Do not break the tube.", hi: "सीआरटी स्क्रीन: अंदर सीसा-कांच। ट्यूब कभी न तोड़ें।", mr: "सीआरटी स्क्रीन: आत शिसे-काच. नळी कधीही फोडू नका." },
-  { icon: "fire", en: "Never burn wire or boards to recover metal. Poisonous smoke.", hi: "धातु के लिए तार या बोर्ड कभी न जलाएं। जहरीला धुआं।", mr: "धातूसाठी तारा किंवा बोर्ड कधीही जाळू नका. विषारी धूर." },
-  { icon: "shield-check", en: "Wear gloves and wash hands after handling scrap.", hi: "दस्ताने पहनें और कबाड़ छूने के बाद हाथ धोएं।", mr: "हातमोजे घाला आणि भंगार हाताळल्यावर हात धुवा." },
+const CARDS: { icon: IconName; en: string; hi: string; mr: string; ml: string }[] = [
+  { icon: "battery-alert", en: "Batteries: tape the ends, keep away from heat. Never puncture.", hi: "बैटरी: सिरों पर टेप लगाएं, गर्मी से दूर रखें। कभी छेद न करें।", mr: "बॅटरी: टोकांना टेप लावा, उष्णतेपासून दूर ठेवा. कधीही छेद पाडू नका.", ml: "ബാറ്ററികൾ: അറ്റങ്ങൾ ടേപ്പ് ചെയ്യുക, ചൂടിൽ നിന്ന് അകറ്റി നിർത്തുക. ഒരിക്കലും പഞ്ചർ ചെയ്യരുത്." },
+  { icon: "television", en: "CRT screens: leaded glass inside. Do not break the tube.", hi: "सीआरटी स्क्रीन: अंदर सीसा-कांच। ट्यूब कभी न तोड़ें।", mr: "सीआरटी स्क्रीन: आत शिसे-काच. नळी कधीही फोडू नका.", ml: "സിആർടി സ്ക്രീനുകൾ: ഉള്ളിൽ ലെഡഡ് ഗ്ലാസ്. ട്യൂബ് പൊട്ടിക്കരുത്." },
+  { icon: "fire", en: "Never burn wire or boards to recover metal. Poisonous smoke.", hi: "धातु के लिए तार या बोर्ड कभी न जलाएं। जहरीला धुआं।", mr: "धातूसाठी तारा किंवा बोर्ड कधीही जाळू नका. विषारी धूर.", ml: "ലോഹം വേർതിരിച്ചെടുക്കാൻ വയറോ ബോർഡുകളോ കത്തിക്കരുത്. വിഷപ്പുക." },
+  { icon: "shield-check", en: "Wear gloves and wash hands after handling scrap.", hi: "दस्ताने पहनें और कबाड़ छूने के बाद हाथ धोएं।", mr: "हातमोजे घाला आणि भंगार हाताळल्यावर हात धुवा.", ml: "ഗ്ലൗസുകൾ ധരിക്കുക, കൈകാര്യം ചെയ്ത ശേഷം കൈ കഴുകുക." },
 ];
 
 export default function Safety() {
